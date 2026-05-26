@@ -218,3 +218,4 @@ node_modules/
 .env*.local
 .DS_Store
 >>>>>>> 3426341 (Add new directory content)
+.vercel
