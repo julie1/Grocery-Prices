@@ -29,10 +29,10 @@ import { createServerClient }        from "@/lib/supabase"
 const CACHE = "public, s-maxage=300, stale-while-revalidate=3600"
 
 export async function GET(
-  const { id } = await params
-  request: NextRequest,
+    request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
   ) {
+  const { id } = await params
   const id    = parseInt(id, 10)
   const weeks = Math.min(
     parseInt(request.nextUrl.searchParams.get("weeks") ?? "12", 10),

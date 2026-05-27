@@ -32,10 +32,10 @@ import { createServerClient }        from "@/lib/supabase"
 const CACHE = "public, s-maxage=300, stale-while-revalidate=3600"
 
 export async function GET(
-  const { id } = await params
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { id } = await params
   const id = parseInt(id, 10)
   if (isNaN(id) || id < 1) {
     return NextResponse.json({ error: "Invalid product id" }, { status: 400 })
