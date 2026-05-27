@@ -32,8 +32,8 @@ export async function GET(
     request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
   ) {
-  const { id } = await params
-  const id    = parseInt(id, 10)
+  const { id: idParam } = await params
+  const id = parseInt(idParam, 10)
   const weeks = Math.min(
     parseInt(request.nextUrl.searchParams.get("weeks") ?? "12", 10),
     52

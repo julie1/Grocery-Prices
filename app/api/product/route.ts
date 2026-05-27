@@ -35,9 +35,9 @@ export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await params
-  const id = parseInt(id, 10)
-  if (isNaN(id) || id < 1) {
+  const { id: idParam } = await params
+  const id = parseInt(idParam, 10)
+    if (isNaN(id) || id < 1) {
     return NextResponse.json({ error: "Invalid product id" }, { status: 400 })
   }
 
