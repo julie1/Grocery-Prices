@@ -5,25 +5,17 @@
 //
 // Query params:
 //   store     — required. e.g. "Safeway"
-//   category  — optional filter, e.g. "dairy"
+//   category  — optional filter by category name, e.g. "Chicken"
 //   limit     — default 60, max 200
 //   offset    — default 0
 //
 // Returns: { deals: DealRow[], total: number, ad_date: string|null, store: string }
 //
-// This is the "browse this week's circular" endpoint — different from /api/search.
+// Powers the per-store "browse this week's circular" tab view.
+// Returns all price rows from the store's most recent ad, joined to category
+// names. Rows without a category_id are included (category_name will be null).
 //
-// /api/search  → canonical products, one row per product, aggregated prices
-// /api/deals   → raw price rows from the store's latest ad, including items
-//                not yet normalized (raw_product_name, no canonical id).
-//                This is what powers the per-store tab view.
-//
-// Including unnormalized rows matters during the early weeks when normalize_agent
-// hasn't run yet — users still see the full circular, just without comparison
-// data for the unmatched items.
-//
-// Results are sorted by category_name then sale_price so the output reads like
-// a naturally organized store circular.
+// Results sorted by category_name then sale_price.
 // =============================================================================
 
 import { NextRequest, NextResponse } from "next/server"
@@ -48,27 +40,70 @@ export async function GET(request: NextRequest) {
   const sb = createServerClient()
 
   try {
+    // Step 1: find the most recent ad_id for this store
+    const { data: storeRow, error: storeErr } = await sb
+      .from("stores")
+      .select("id")
+      .ilike("name", store)
+      .single()
+
+    if (storeErr || !storeRow) {
+      return NextResponse.json({ error: "Store not found" }, { status: 404 })
+    }
+
+    const { data: latestAd, error: adErr } = await sb
+      .from("ads")
+      .select("id, ad_date")
+      .eq("store_id", storeRow.id)
+      .order("ad_date", { ascending: false })
+      .limit(1)
+      .single()
+
+    if (adErr || !latestAd) {
+      return NextResponse.json(
+        { deals: [], total: 0, ad_date: null, store },
+        { headers: { "Cache-Control": CACHE } }
+      )
+    }
+
+    // Step 2: fetch price rows for that ad, joined to categories
     let query = sb
-      .from("v_current_week_deals")
-      .select("*", { count: "exact" })
-      .ilike("store_name", store)
-      .order("category_name", { ascending: true,  nullsFirst: false })
-      .order("sale_price",    { ascending: true  })
+      .from("prices")
+      .select(
+        "id, raw_product_name, sale_price, price_per_unit, unit_size, " +
+        "special_conditions, bundle_quantity, bundle_price, category_id, " +
+        "categories(name)",
+        { count: "exact" }
+      )
+      .eq("ad_id", latestAd.id)
+      .order("categories(name)", { ascending: true,  nullsFirst: false })
+      .order("sale_price",       { ascending: true })
       .range(offset, offset + limit - 1)
 
     if (category) {
-      query = query.ilike("category_name", category)
+      // Filter via the joined category name
+      const { data: catRow } = await sb
+        .from("categories")
+        .select("id")
+        .ilike("name", category)
+        .single()
+      if (catRow) {
+        query = query.eq("category_id", catRow.id)
+      }
     }
 
     const { data, error, count } = await query
     if (error) throw error
 
-    // Pull the ad_date from the first row — all rows in v_current_week_deals
-    // for a given store share the same ad_date (it's the latest ad)
-    const adDate = (data ?? [])[0]?.ad_date ?? null
+    // Flatten category join for convenience
+    const deals = (data ?? []).map((row: any) => ({
+      ...row,
+      category_name: row.categories?.name ?? null,
+      categories: undefined,
+    }))
 
     return NextResponse.json(
-      { deals: data ?? [], total: count ?? 0, ad_date: adDate, store },
+      { deals, total: count ?? 0, ad_date: latestAd.ad_date, store },
       { headers: { "Cache-Control": CACHE } }
     )
   } catch (err) {

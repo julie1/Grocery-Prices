@@ -5,30 +5,21 @@
 //
 // Query params:
 //   q         — search term, e.g. "chicken breast"  (optional)
-//   category  — filter by category name, e.g. "poultry"  (optional)
-//   store     — only products on sale at this store this week  (optional)
+//   store     — filter by store name, e.g. "Safeway"  (optional)
+//   category  — filter by category name, e.g. "Chicken"  (optional)
+//   weeks     — how many weeks back to search, default 4, max 52
 //   limit     — max results, default 30, max 100
 //   offset    — pagination offset, default 0
 //
-// Returns: { products: SearchProduct[], total: number }
+// Returns: { results: SearchResult[], total: number }
 //
-// Two modes:
-//   With q:    full-text search via Postgres plainto_tsquery() + GIN index.
-//              Handles stemming ("chickens" → "chicken"), faster than ILIKE.
-//   Without q: browse mode — returns all products, sorted by stores_this_week
-//              then lowest_price.  Good for category browsing.
+// Searches raw_product_name using ILIKE — no canonical products, no LLM.
+// Each row is a distinct price entry from the prices table, joined to store
+// and category info. Results are sorted by ad_date DESC then sale_price ASC
+// so the most recent deals appear first.
 //
-// Store filter design:
-//   v_search_products aggregates across all stores, so it has no store_name
-//   column to filter on directly.  When ?store= is supplied we do a quick
-//   pre-query on v_current_week_deals to get the canonical_product_ids
-//   currently on sale at that store, then filter the main query to those ids.
-//   Two queries instead of one, but each is simple and fast.
-//
-// Caching:
-//   s-maxage=300 (5 min CDN cache) + stale-while-revalidate=3600 (serve stale
-//   for up to an hour while Vercel refreshes in background).  Weekly ad data
-//   doesn't change mid-day so this is very safe.
+// The `weeks` param bounds the search window — default 4 weeks covers the
+// current and previous circular for each store.
 // =============================================================================
 
 import { NextRequest, NextResponse } from "next/server"
@@ -39,70 +30,98 @@ const CACHE = "public, s-maxage=300, stale-while-revalidate=3600"
 export async function GET(request: NextRequest) {
   const sp       = request.nextUrl.searchParams
   const q        = sp.get("q")?.trim()        ?? ""
-  const category = sp.get("category")?.trim() ?? ""
   const store    = sp.get("store")?.trim()    ?? ""
+  const category = sp.get("category")?.trim() ?? ""
+  const weeks    = Math.min(parseInt(sp.get("weeks")  ?? "4",  10), 52)
   const limit    = Math.min(parseInt(sp.get("limit")  ?? "30", 10), 100)
   const offset   = Math.max(parseInt(sp.get("offset") ?? "0",  10), 0)
 
   const sb = createServerClient()
 
   try {
-    // Step 1 (conditional): resolve store filter to a list of product ids
-    let allowedIds: number[] | null = null
+    // Cutoff date
+    const cutoff = new Date()
+    cutoff.setDate(cutoff.getDate() - weeks * 7)
+    const cutoffStr = cutoff.toISOString().split("T")[0]
+
+    // Resolve optional store filter to store_id
+    let storeId: number | null = null
     if (store) {
-      const { data: dealRows, error: dealErr } = await sb
-        .from("v_current_week_deals")
-        .select("canonical_product_id")
-        .ilike("store_name", store)
-        .not("canonical_product_id", "is", null)
-
-      if (dealErr) throw dealErr
-
-      allowedIds = (dealRows ?? [])
-        .map((r: { canonical_product_id: number | null }) => r.canonical_product_id)
-        .filter((id): id is number => id !== null)
-
-      // Store exists but nothing on sale this week — return empty early
-      if (allowedIds.length === 0) {
+      const { data: storeRow } = await sb
+        .from("stores")
+        .select("id")
+        .ilike("name", store)
+        .single()
+      if (!storeRow) {
         return NextResponse.json(
-          { products: [], total: 0 },
+          { results: [], total: 0 },
           { headers: { "Cache-Control": CACHE } }
         )
       }
+      storeId = storeRow.id
     }
 
-    // Step 2: main search query against v_search_products
-    let query = sb
-      .from("v_search_products")
-      .select("*", { count: "exact" })
-
-    // Full-text search — uses the GIN index on canonical_products
-    if (q) {
-      query = query.textSearch("product_name", q, {
-        type:   "plain",
-        config: "english",
-      })
-    }
-
+    // Resolve optional category filter to category_id
+    let categoryId: number | null = null
     if (category) {
-      query = query.ilike("category_name", category)
+      const { data: catRow } = await sb
+        .from("categories")
+        .select("id")
+        .ilike("name", category)
+        .single()
+      if (catRow) categoryId = catRow.id
     }
 
-    if (allowedIds !== null) {
-      query = query.in("canonical_product_id", allowedIds)
-    }
-
-    // Sort: most stores carrying it first (most "deal-worthy"), then cheapest
-    query = query
-      .order("stores_this_week", { ascending: false })
-      .order("lowest_price",     { ascending: true  })
+    // Main query — prices joined to ads, stores, categories
+    let query = sb
+      .from("prices")
+      .select(
+        "id, raw_product_name, sale_price, price_per_unit, unit_size, " +
+        "special_conditions, bundle_quantity, bundle_price, category_id, " +
+        "categories(name), " +
+        "ads!inner(ad_date, store_id, stores!inner(id, name, location))",
+        { count: "exact" }
+      )
+      .gte("ads.ad_date", cutoffStr)
+      .order("ads.ad_date", { ascending: false })
+      .order("sale_price",  { ascending: true  })
       .range(offset, offset + limit - 1)
+
+    if (q) {
+      query = query.ilike("raw_product_name", `%${q}%`)
+    }
+
+    if (storeId !== null) {
+      query = query.eq("ads.store_id", storeId)
+    }
+
+    if (categoryId !== null) {
+      query = query.eq("category_id", categoryId)
+    }
 
     const { data, error, count } = await query
     if (error) throw error
 
+    // Flatten nested joins
+    const results = (data ?? []).map((row: any) => ({
+      id:                  row.id,
+      raw_product_name:    row.raw_product_name,
+      sale_price:          row.sale_price,
+      price_per_unit:      row.price_per_unit,
+      unit_size:           row.unit_size,
+      special_conditions:  row.special_conditions,
+      bundle_quantity:     row.bundle_quantity,
+      bundle_price:        row.bundle_price,
+      category_id:         row.category_id,
+      category_name:       row.categories?.name ?? null,
+      ad_date:             row.ads?.ad_date ?? null,
+      store_id:            row.ads?.stores?.id ?? null,
+      store_name:          row.ads?.stores?.name ?? null,
+      store_location:      row.ads?.stores?.location ?? null,
+    }))
+
     return NextResponse.json(
-      { products: data ?? [], total: count ?? 0 },
+      { results, total: count ?? 0 },
       { headers: { "Cache-Control": CACHE } }
     )
   } catch (err) {
