@@ -1,4 +1,4 @@
-- name: Ping-Supabase-Management-API
+- name: PingSupabaseManagementAPI
         run: |
           curl -sS -X GET "https://api.supabase.io/v1/projects/teudindahxbeiretiycf" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}"
