@@ -8,4 +8,6 @@ jobs:
       - name: Ping Supabase Management API
         run: |
           curl -sS -X GET "https://api.supabase.io/v1/projects/teudindahxbeiretiycf" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}"
+              -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
+              -H "Content-Type: application/json"
+          
