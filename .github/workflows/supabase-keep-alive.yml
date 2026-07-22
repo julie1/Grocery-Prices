@@ -1,18 +1,17 @@
 name: Keep Supabase Project Alive
 on:
   schedule:
-    # Runs at 00:00 UTC every Tuesday and Friday (every 3-4 days)
-    - cron: '0 0 * * 2,5'
-  # Allows you to manually trigger the workflow from the Actions tab anytime
+    - cron: '0 0 * * *'
   workflow_dispatch:
 jobs:
   ping-supabase:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase REST API
+      - name: Ping Supabase database
         run: |
           curl -fsS -X GET "https://teudindahxbeiretiycf.supabase.co/rest/v1/prices?select=*&limit=1" \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}"
-
-
-
+      - name: Ping Supabase Management API
+        run: |
+          curl -fsS -X GET "https://api.supabase.com/v1/projects/teudindahxbeiretiycf" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}"
