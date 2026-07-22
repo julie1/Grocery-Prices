@@ -1,4 +1,11 @@
-- name: Ping Supabase Management API
-  run: |
-   curl -sS -X GET "https://api.supabase.io/v1/projects/teudindahxbeiretiycf" \
-    -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}"
+name: Ping Supabase Management API
+on:
+  workflow_dispatch:
+jobs:
+  ping-management-api:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase Management API
+        run: |
+          curl -sS -X GET "https://api.supabase.io/v1/projects/teudindahxbeiretiycf" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}"
