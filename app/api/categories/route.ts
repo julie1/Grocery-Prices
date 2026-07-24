@@ -76,7 +76,8 @@ export async function GET(request: NextRequest) {
       .eq("category_id", catRow.id)
       .eq("ads.store_id", storeRow.id)
       .gte("ads.ad_date", cutoffStr)
-      .order("ads.ad_date", { ascending: true })
+      .order("ad_date", { ascending: true, foreignTable: "ads" })
+    
 
     if (error) throw error
 

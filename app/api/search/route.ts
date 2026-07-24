@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
         { count: "exact" }
       )
       .gte("ads.ad_date", cutoffStr)
-      .order("ads.ad_date", { ascending: false })
+      .order("ad_date", { ascending: true, foreignTable: "ads" })
       .order("sale_price",  { ascending: true  })
       .range(offset, offset + limit - 1)
 
