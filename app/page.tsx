@@ -115,7 +115,12 @@ function reshapeTrend(rows: TrendPoint[], field: "avg_price" | "min_price", labe
   return { chartData, storeNames: [label] }
 }
 
-// Reshape basket data into recharts format
+// Reshape basket data into recharts format.
+// Each store's raw value from the API is now a BasketCell object
+// ({ total, matched_count, total_items, coverage, confidence }) or null —
+// not a plain number — so we pull `.total` out for charting and carry
+// `.confidence` along under a parallel key in case the chart wants to
+// style low-confidence points differently later.
 function reshapeBasket(rows: Record<string, any>[], stores: string[]): PriceHistoryData[] {
   return rows.map(row => {
     const entry: PriceHistoryData = {
@@ -124,8 +129,10 @@ function reshapeBasket(rows: Record<string, any>[], stores: string[]): PriceHist
       }),
     }
     for (const store of stores) {
-      if (row[store] !== null && row[store] !== undefined) {
-        entry[store] = row[store]
+      const cell = row[store]
+      if (cell !== null && cell !== undefined) {
+        entry[store] = typeof cell === "number" ? cell : cell.total
+        entry[`${store}_confidence`] = typeof cell === "number" ? undefined : cell.confidence
       }
     }
     return entry
@@ -545,8 +552,7 @@ export default function HomePage() {
                 Inflation Basket Comparison
               </h2>
               <p className="text-sm text-muted-foreground mt-1">
-                Total cost of 25 common staples per store, tracked weekly from ad prices.
-                Weeks with insufficient data are omitted.
+                Total cost of common staples per store, tracked weekly from ad prices.
               </p>
             </div>
 
