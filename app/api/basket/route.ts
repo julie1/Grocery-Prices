@@ -11,17 +11,26 @@
 // Each BasketWeek is:
 //   {
 //     ad_date: string,
-//     Yokes: number | null,
-//     Rosauers: number | null,
-//     Safeway: number | null,
-//     "Fred Meyer": number | null,
+//     Yokes: BasketCell | null,
+//     Rosauers: BasketCell | null,
+//     Safeway: BasketCell | null,
+//     "Fred Meyer": BasketCell | null,
+//   }
+// where BasketCell is:
+//   {
+//     total: number,          // summed sale price across matched items
+//     matched_count: number,  // how many active basket items matched this week
+//     total_items: number,    // how many active basket items exist for this store
+//     coverage: number,       // matched_count / total_items, 0-1
+//     confidence: "high" | "medium" | "low",  // coverage >= .8 / >= .5 / below
 //   }
 //
 // Powers the basket cost comparison chart. For each week, computes the total
-// cost of the 25-item inflation basket at each store based on sale prices
-// from that week's ad. If a basket item wasn't on sale that week at a store,
-// that store's contribution for that item is null (not interpolated here —
-// interpolation can be done in the frontend or a future enhancement).
+// cost of the active inflation basket at each store based on sale prices
+// from that week's ad. A cell is null only when fewer than 3 items matched
+// (too noisy to represent a basket at all). Otherwise the total is always
+// returned along with matched/total counts and a confidence tier, so partial
+// weeks are shown (with a visual indicator) instead of being hidden.
 //
 // Matching logic: for each basket_item, find prices rows where:
 //   - ad.store_id matches basket_item.store_id
@@ -69,6 +78,16 @@ export async function GET(request: NextRequest) {
     const storeIdToName = Object.fromEntries(
       (stores ?? []).map((s: any) => [s.id, s.name])
     )
+
+    // Total active basket items per store — the denominator for coverage %.
+    // Computed from basketItems directly rather than a hardcoded "25", since
+    // different stores can have different numbers of active items.
+    const totalItemsByStore = new Map<string, number>()
+    for (const item of basketItems ?? []) {
+      const storeName = storeIdToName[item.store_id]
+      if (!storeName) continue
+      totalItemsByStore.set(storeName, (totalItemsByStore.get(storeName) ?? 0) + 1)
+    }
 
     // Fetch all ads in the window with their store
     const { data: ads, error: adsErr } = await sb
@@ -152,10 +171,30 @@ export async function GET(request: NextRequest) {
       const row: Record<string, any> = { ad_date }
       for (const name of STORE_NAMES) {
         const entry = storeMap?.get(name)
-        // Only include total if at least half the basket items matched
-        row[name] = entry && entry.count >= 10
-          ? Math.round(entry.total * 100) / 100
-          : null
+        const totalItems = totalItemsByStore.get(name) ?? 0
+        const matchedCount = entry?.count ?? 0
+        const coverage = totalItems > 0 ? matchedCount / totalItems : 0
+
+        // Floor: below 3 matched items, a "total" is too noisy to be
+        // meaningful (one or two sale prices don't represent a basket).
+        // Above that floor we always return the total — no more hard
+        // cutoff — plus enough info for the frontend to show a confidence
+        // indicator instead of silently hiding the week.
+        if (matchedCount < 3) {
+          row[name] = null
+          continue
+        }
+
+        const confidence: "high" | "medium" | "low" =
+          coverage >= 0.8 ? "high" : coverage >= 0.5 ? "medium" : "low"
+
+        row[name] = {
+          total: Math.round((entry!.total) * 100) / 100,
+          matched_count: matchedCount,
+          total_items: totalItems,
+          coverage: Math.round(coverage * 100) / 100,
+          confidence,
+        }
       }
       return row
     })
