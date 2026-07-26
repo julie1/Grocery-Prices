@@ -52,6 +52,7 @@ export async function GET(request: NextRequest) {
     parseInt(request.nextUrl.searchParams.get("weeks") ?? "12", 10),
     52
   )
+  const debug = request.nextUrl.searchParams.get("debug") === "1"
 
   const sb = createServerClient()
 
@@ -165,6 +166,48 @@ export async function GET(request: NextRequest) {
     const allDates = Array.from(
       new Set((ads ?? []).map((a: any) => a.ad_date))
     ).sort()
+
+    if (debug) {
+      const latestDate = allDates[allDates.length - 1]
+      const latestAdIdsByStore = new Map<number, number[]>() // store_id -> ad_ids on latestDate
+      for (const ad of ads ?? []) {
+        if (ad.ad_date !== latestDate) continue
+        const list = latestAdIdsByStore.get(ad.store_id) ?? []
+        list.push(ad.id)
+        latestAdIdsByStore.set(ad.store_id, list)
+      }
+
+      const itemDiagnostics = (basketItems ?? []).map((item: any) => {
+        const storeName = storeIdToName[item.store_id] ?? `store_id ${item.store_id}`
+        const adIdsThisWeek = latestAdIdsByStore.get(item.store_id) ?? []
+        const pricesThisStoreWeek = (prices ?? []).filter((p: any) =>
+          adIdsThisWeek.includes(p.ad_id)
+        )
+        const keywords: string[] = item.match_keywords ?? []
+        const excludes: string[] = item.exclude_keywords ?? []
+        const matches = pricesThisStoreWeek.filter((p: any) => {
+          const name = (p.raw_product_name ?? "").toLowerCase()
+          if (excludes.some((ex: string) => name.includes(ex.toLowerCase()))) return false
+          return keywords.some((kw: string) => name.includes(kw.toLowerCase()))
+        })
+        return {
+          basket_item: item.name,
+          store: storeName,
+          keywords,
+          excludes,
+          total_prices_that_store_that_week: pricesThisStoreWeek.length,
+          matched_count: matches.length,
+          sample_raw_names_no_match: pricesThisStoreWeek
+            .slice(0, 8)
+            .map((p: any) => p.raw_product_name),
+        }
+      })
+
+      return NextResponse.json(
+        { latestDate, itemDiagnostics },
+        { headers: { "Cache-Control": "no-store" } }
+      )
+    }
 
     const basket = allDates.map((ad_date) => {
       const storeMap = weeklyTotals.get(ad_date)
