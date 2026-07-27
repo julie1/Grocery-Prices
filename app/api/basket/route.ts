@@ -5,6 +5,12 @@
 //
 // Query params:
 //   weeks  — how many weeks back, default 12, max 52
+//   debug  — "1" to return diagnostics instead of the normal basket response.
+//            Without &item=..., returns a single-latest-week, all-items
+//            overview. With &item=Milk (basket_item name, case-insensitive),
+//            returns that item's match diagnostics across every week in the
+//            `weeks` window — use this to check whether an item is just
+//            absent from a given week's ad vs. a genuine matching problem.
 //
 // Returns: { basket: BasketWeek[], stores: string[] }
 //
@@ -199,6 +205,57 @@ export async function GET(request: NextRequest) {
     ).sort()
 
     if (debug) {
+      const itemFilter = request.nextUrl.searchParams.get("item")
+
+      if (itemFilter) {
+        // Multi-week view for one basket item — lets you check whether an
+        // item shows up most weeks or was genuinely absent from the ad,
+        // instead of only ever seeing the single latest week.
+        const matchingItems = (basketItems ?? []).filter(
+          (item: any) => item.name.toLowerCase() === itemFilter.toLowerCase()
+        )
+
+        const adsByDateAndStore = new Map<string, Map<number, number[]>>() // ad_date -> store_id -> ad_ids
+        for (const ad of ads ?? []) {
+          if (!adsByDateAndStore.has(ad.ad_date)) adsByDateAndStore.set(ad.ad_date, new Map())
+          const storeMap = adsByDateAndStore.get(ad.ad_date)!
+          const list = storeMap.get(ad.store_id) ?? []
+          list.push(ad.id)
+          storeMap.set(ad.store_id, list)
+        }
+
+        const weeksOut = allDates.map((ad_date) => {
+          const storeMap = adsByDateAndStore.get(ad_date) ?? new Map()
+          const stores: Record<string, any> = {}
+          for (const item of matchingItems) {
+            const storeName = storeIdToName[item.store_id] ?? `store_id ${item.store_id}`
+            const adIdsThisWeek = storeMap.get(item.store_id) ?? []
+            const pricesThisStoreWeek = (prices ?? []).filter((p: any) =>
+              adIdsThisWeek.includes(p.ad_id)
+            )
+            const keywords: string[] = item.match_keywords ?? []
+            const excludes: string[] = item.exclude_keywords ?? []
+            const matches = pricesThisStoreWeek.filter((p: any) => {
+              const name = (p.raw_product_name ?? "").toLowerCase()
+              if (excludes.some((ex: string) => name.includes(ex.toLowerCase()))) return false
+              return keywords.some((kw: string) => name.includes(kw.toLowerCase()))
+            })
+            stores[storeName] = {
+              total_prices_that_store_that_week: pricesThisStoreWeek.length,
+              matched_count: matches.length,
+              matched_names: matches.map((p: any) => p.raw_product_name),
+            }
+          }
+          return { ad_date, stores }
+        })
+
+        return NextResponse.json(
+          { item: itemFilter, weeks: weeksOut },
+          { headers: { "Cache-Control": "no-store" } }
+        )
+      }
+
+      // No item filter — original single-latest-week, all-items overview.
       const latestDate = allDates[allDates.length - 1]
       const latestAdIdsByStore = new Map<number, number[]>() // store_id -> ad_ids on latestDate
       for (const ad of ads ?? []) {
