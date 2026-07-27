@@ -47,6 +47,30 @@ const CACHE = "public, s-maxage=300, stale-while-revalidate=3600"
 // Store names in display order
 const STORE_NAMES = ["Yokes", "Rosauers", "Safeway", "Fred Meyer"]
 
+// Supabase/PostgREST caps a single .select() at a default row limit
+// (commonly 1000) unless you paginate with .range(). For a period with
+// many weeks of ads/prices this table can easily exceed that in one
+// query, and since rows are typically returned in insertion order, the
+// truncated tail is the MOST RECENT data — exactly the weeks you'd
+// notice missing first. This helper pages through with .range() until a
+// page comes back short, so no data is silently dropped.
+async function fetchAllRows<T>(
+  queryPage: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: any }>,
+  pageSize = 1000
+): Promise<T[]> {
+  const all: T[] = []
+  let from = 0
+  while (true) {
+    const { data, error } = await queryPage(from, from + pageSize - 1)
+    if (error) throw error
+    if (!data || data.length === 0) break
+    all.push(...data)
+    if (data.length < pageSize) break
+    from += pageSize
+  }
+  return all
+}
+
 export async function GET(request: NextRequest) {
   const weeks = Math.min(
     parseInt(request.nextUrl.searchParams.get("weeks") ?? "12", 10),
@@ -90,14 +114,17 @@ export async function GET(request: NextRequest) {
       totalItemsByStore.set(storeName, (totalItemsByStore.get(storeName) ?? 0) + 1)
     }
 
-    // Fetch all ads in the window with their store
-    const { data: ads, error: adsErr } = await sb
-      .from("ads")
-      .select("id, ad_date, store_id")
-      .gte("ad_date", cutoffStr)
-      .order("ad_date", { ascending: true })
-
-    if (adsErr) throw adsErr
+    // Fetch all ads in the window with their store.
+    // Ordered by id (stable, insertion order) as well as date so pagination
+    // is deterministic across pages even when many ads share a date.
+    const ads = await fetchAllRows((from, to) =>
+      sb.from("ads")
+        .select("id, ad_date, store_id")
+        .gte("ad_date", cutoffStr)
+        .order("ad_date", { ascending: true })
+        .order("id", { ascending: true })
+        .range(from, to)
+    )
 
     // Build a map of ad_id → { ad_date, store_id }
     const adMap = new Map<number, { ad_date: string; store_id: number }>()
@@ -113,13 +140,17 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    // Fetch all price rows for these ads
-    const { data: prices, error: pricesErr } = await sb
-      .from("prices")
-      .select("id, ad_id, raw_product_name, sale_price")
-      .in("ad_id", adIds)
-
-    if (pricesErr) throw pricesErr
+    // Fetch all price rows for these ads — paginated, since this table
+    // is the one most likely to blow past the default row cap (a single
+    // store/week can be 100+ rows on its own; across many weeks this is
+    // easily 10,000+).
+    const prices = await fetchAllRows((from, to) =>
+      sb.from("prices")
+        .select("id, ad_id, raw_product_name, sale_price")
+        .in("ad_id", adIds)
+        .order("id", { ascending: true })
+        .range(from, to)
+    )
 
     // For each basket item + ad week, find the best matching price
     // Structure: weeklyTotals[ad_date][store_name] = { total, matched_items }
