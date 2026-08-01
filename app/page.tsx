@@ -171,7 +171,6 @@ export default function HomePage() {
   const [searchResults,  setSearchResults]  = useState<SearchResult[]>([])
   const [trendData,      setTrendData]      = useState<PriceHistoryData[]>([])
   const [trendStores,    setTrendStores]    = useState<string[]>([])
-  const [trendWeeks,     setTrendWeeks]     = useState<number>(24)
   const [basketData,     setBasketData]     = useState<PriceHistoryData[]>([])
   const [basketStores,   setBasketStores]   = useState<string[]>([])
   const [visibleStores,  setVisibleStores]  = useState<string[]>([])
@@ -228,12 +227,15 @@ export default function HomePage() {
       .finally(() => setLoadingDeals(false))
   }, [selectedStore, selectedDate, viewMode, isSearching])
 
-  // ── Fetch category trend when store, category, or zoom range changes ──────
+  // ── Fetch category trend when store or category changes ───────────────────
+  // Always fetches the full available window (52 weeks, the API's max) — the
+  // chart's own zoom buttons/brush handle focusing into a shorter interval,
+  // so there's no separate "how much to fetch" control to keep in sync with.
   useEffect(() => {
     if (!selectedStore || viewMode !== "trends") return
     setLoadingTrends(true)
     setTrendData([])
-    fetch(`/api/categories?store=${encodeURIComponent(selectedStore)}&category=${encodeURIComponent(selectedCat)}&weeks=${trendWeeks}`)
+    fetch(`/api/categories?store=${encodeURIComponent(selectedStore)}&category=${encodeURIComponent(selectedCat)}&weeks=52`)
       .then(r => r.json())
       .then(data => {
         const { chartData, storeNames } = reshapeTrend(data.trend ?? [], "Average", "Lowest seen")
@@ -242,7 +244,7 @@ export default function HomePage() {
       })
       .catch(() => setError("Could not load trend data"))
       .finally(() => setLoadingTrends(false))
-  }, [selectedStore, selectedCat, viewMode, trendWeeks])
+  }, [selectedStore, selectedCat, viewMode])
 
   // ── Fetch basket once when basket tab is selected ─────────────────────────
   useEffect(() => {
@@ -575,46 +577,25 @@ export default function HomePage() {
         {/* TRENDS VIEW */}
         {!isSearching && viewMode === "trends" && (
           <div>
-            <div className="flex flex-col sm:flex-row gap-4 mb-4 items-start sm:items-center justify-between">
-              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-                <div>
-                  <label className="text-sm text-muted-foreground mr-2">Category:</label>
-                  <div className="relative inline-block">
-                    <select
-                      value={selectedCat}
-                      onChange={e => setSelectedCat(e.target.value)}
-                      className="appearance-none bg-card border border-border rounded-lg px-3 py-2 pr-8 text-sm text-foreground cursor-pointer"
-                    >
-                      {CATEGORIES.map(c => (
-                        <option key={c} value={c}>{c}</option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  <strong style={{ color: categoryGroupFor(selectedCat).color }}>{selectedCat}</strong> at <strong>{selectedStore}</strong>
-                </p>
-              </div>
-
-              {/* Zoom-out presets — how far back to fetch. The chart's own
-                  brush handles zooming in within whatever range is loaded. */}
-              <div className="flex gap-1">
-                {[8, 24, 52].map(w => (
-                  <button
-                    key={w}
-                    onClick={() => setTrendWeeks(w)}
-                    className={[
-                      "px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
-                      trendWeeks === w
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-card border border-border text-muted-foreground hover:text-foreground",
-                    ].join(" ")}
+            <div className="flex flex-col sm:flex-row gap-4 mb-4 items-start sm:items-center">
+              <div>
+                <label className="text-sm text-muted-foreground mr-2">Category:</label>
+                <div className="relative inline-block">
+                  <select
+                    value={selectedCat}
+                    onChange={e => setSelectedCat(e.target.value)}
+                    className="appearance-none bg-card border border-border rounded-lg px-3 py-2 pr-8 text-sm text-foreground cursor-pointer"
                   >
-                    {w === 52 ? "1 year" : `${w} weeks`}
-                  </button>
-                ))}
+                    {CATEGORIES.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                </div>
               </div>
+              <p className="text-sm text-muted-foreground">
+                <strong style={{ color: categoryGroupFor(selectedCat).color }}>{selectedCat}</strong> at <strong>{selectedStore}</strong>
+              </p>
             </div>
 
             {loadingTrends ? (
@@ -748,7 +729,7 @@ export default function HomePage() {
             : viewMode === "browse"
             ? { store: selectedStore, date: selectedDate || currentAdDate }
             : viewMode === "trends"
-            ? { store: selectedStore, category: selectedCat, weeks: trendWeeks }
+            ? { store: selectedStore, category: selectedCat }
             : { visibleStores }
         }
       />
