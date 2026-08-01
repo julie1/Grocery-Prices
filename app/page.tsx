@@ -22,9 +22,11 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { SearchBar }                                 from "@/components/search-bar"
 import { PriceChart, PriceHistoryData }              from "@/components/price-chart"
+import { FeedbackWidget }                            from "@/components/feedback-widget"
+import { categoryGroupFor, GROUP_ORDER, STORE_COLORS } from "@/lib/colors"
 import {
   ShoppingCart, TrendingDown, Store,
-  BarChart3, Loader2, AlertCircle, ChevronDown,
+  BarChart3, Loader2, AlertCircle, ChevronDown, Calendar,
 } from "lucide-react"
 
 // ---------------------------------------------------------------------------
@@ -101,8 +103,9 @@ function useDebounce<T>(value: T, ms: number): T {
   return v
 }
 
-// Reshape flat trend rows into recharts format
-function reshapeTrend(rows: TrendPoint[], field: "avg_price" | "min_price", label: string): {
+// Reshape flat trend rows into recharts format, as two series (average and
+// lowest price seen that week) so the trend chart shows more than one line.
+function reshapeTrend(rows: TrendPoint[], avgLabel: string, minLabel: string): {
   chartData: PriceHistoryData[]
   storeNames: string[]
 } {
@@ -110,9 +113,10 @@ function reshapeTrend(rows: TrendPoint[], field: "avg_price" | "min_price", labe
     date: new Date(r.ad_date + "T00:00:00").toLocaleDateString("en-US", {
       month: "short", day: "numeric",
     }),
-    [label]: r[field],
+    [avgLabel]: r.avg_price,
+    [minLabel]: r.min_price,
   }))
-  return { chartData, storeNames: [label] }
+  return { chartData, storeNames: [avgLabel, minLabel] }
 }
 
 // Reshape basket data into recharts format.
@@ -162,11 +166,15 @@ export default function HomePage() {
   const [stores,         setStores]         = useState<StoreSummary[]>([])
   const [deals,          setDeals]          = useState<DealRow[]>([])
   const [currentAdDate,  setCurrentAdDate]  = useState<string | null>(null)
+  const [availableDates, setAvailableDates] = useState<string[]>([])
+  const [selectedDate,   setSelectedDate]   = useState<string>("")  // "" = latest ad
   const [searchResults,  setSearchResults]  = useState<SearchResult[]>([])
   const [trendData,      setTrendData]      = useState<PriceHistoryData[]>([])
   const [trendStores,    setTrendStores]    = useState<string[]>([])
+  const [trendWeeks,     setTrendWeeks]     = useState<number>(24)
   const [basketData,     setBasketData]     = useState<PriceHistoryData[]>([])
   const [basketStores,   setBasketStores]   = useState<string[]>([])
+  const [visibleStores,  setVisibleStores]  = useState<string[]>([])
 
   // ── Loading / error ────────────────────────────────────────────────────────
   const [loadingStores,  setLoadingStores]  = useState(true)
@@ -194,12 +202,23 @@ export default function HomePage() {
       .finally(() => setLoadingStores(false))
   }, [])
 
-  // ── Fetch deals when store changes (browse mode, not searching) ───────────
+  // ── Fetch this store's available ad dates when store changes ──────────────
+  useEffect(() => {
+    if (!selectedStore) return
+    setSelectedDate("")  // reset to "latest" whenever the store changes
+    fetch(`/api/ad-dates?store=${encodeURIComponent(selectedStore)}`)
+      .then(r => r.json())
+      .then(data => setAvailableDates(data.dates ?? []))
+      .catch(() => setAvailableDates([]))
+  }, [selectedStore])
+
+  // ── Fetch deals when store or date changes (browse mode, not searching) ───
   useEffect(() => {
     if (!selectedStore || isSearching || viewMode !== "browse") return
     setLoadingDeals(true)
     setDeals([])
-    fetch(`/api/deals?store=${encodeURIComponent(selectedStore)}&limit=120`)
+    const dateParam = selectedDate ? `&date=${encodeURIComponent(selectedDate)}` : ""
+    fetch(`/api/deals?store=${encodeURIComponent(selectedStore)}&limit=120${dateParam}`)
       .then(r => r.json())
       .then(data => {
         setDeals(data.deals ?? [])
@@ -207,23 +226,23 @@ export default function HomePage() {
       })
       .catch(() => setError("Could not load deals"))
       .finally(() => setLoadingDeals(false))
-  }, [selectedStore, viewMode, isSearching])
+  }, [selectedStore, selectedDate, viewMode, isSearching])
 
-  // ── Fetch category trend when store or category changes ───────────────────
+  // ── Fetch category trend when store, category, or zoom range changes ──────
   useEffect(() => {
     if (!selectedStore || viewMode !== "trends") return
     setLoadingTrends(true)
     setTrendData([])
-    fetch(`/api/categories?store=${encodeURIComponent(selectedStore)}&category=${encodeURIComponent(selectedCat)}&weeks=24`)
+    fetch(`/api/categories?store=${encodeURIComponent(selectedStore)}&category=${encodeURIComponent(selectedCat)}&weeks=${trendWeeks}`)
       .then(r => r.json())
       .then(data => {
-        const { chartData, storeNames } = reshapeTrend(data.trend ?? [], "avg_price", `${selectedStore} avg`)
+        const { chartData, storeNames } = reshapeTrend(data.trend ?? [], "Average", "Lowest seen")
         setTrendData(chartData)
         setTrendStores(storeNames)
       })
       .catch(() => setError("Could not load trend data"))
       .finally(() => setLoadingTrends(false))
-  }, [selectedStore, selectedCat, viewMode])
+  }, [selectedStore, selectedCat, viewMode, trendWeeks])
 
   // ── Fetch basket once when basket tab is selected ─────────────────────────
   useEffect(() => {
@@ -234,6 +253,7 @@ export default function HomePage() {
       .then(data => {
         const stores: string[] = data.stores ?? []
         setBasketStores(stores)
+        setVisibleStores(stores)
         setBasketData(reshapeBasket(data.basket ?? [], stores))
         basketLoaded.current = true
       })
@@ -255,13 +275,23 @@ export default function HomePage() {
       .finally(() => setLoadingSearch(false))
   }, [debouncedQuery])
 
-  // ── Group deals by category for display ───────────────────────────────────
+  // ── Group deals by category, then bucket categories into shopping-list
+  //    sections (Fresh Produce, Meat & Seafood, Dairy & Eggs, ...) so the
+  //    Browse page reads like a shopping list instead of a flat, effectively
+  //    random ordering of unrelated categories. ──────────────────────────────
   const dealsByCategory = deals.reduce<Record<string, DealRow[]>>((acc, deal) => {
     const cat = deal.category_name ?? "Other"
     if (!acc[cat]) acc[cat] = []
     acc[cat].push(deal)
     return acc
   }, {})
+
+  const sectionsByGroup = GROUP_ORDER.map(group => {
+    const categories = Object.entries(dealsByCategory)
+      .filter(([cat]) => categoryGroupFor(cat).group === group)
+      .sort(([a], [b]) => a.localeCompare(b))
+    return { group, color: categoryGroupFor(categories[0]?.[0]).color, categories }
+  }).filter(section => section.categories.length > 0)
 
   const isLoading = loadingDeals || loadingSearch || loadingTrends || loadingBasket
 
@@ -340,32 +370,55 @@ export default function HomePage() {
       {!isSearching && (
         <div className="border-b border-border bg-card/30">
           <div className="container mx-auto px-4">
-            <div className="flex gap-0 overflow-x-auto">
-              {loadingStores
-                ? [1,2,3,4].map(i => (
-                    <div key={i}
-                      className="h-12 w-28 m-1 rounded animate-pulse bg-muted" />
-                  ))
-                : stores.map(store => (
-                    <button
-                      key={store.id}
-                      onClick={() => setSelectedStore(store.name)}
-                      className={[
-                        "flex flex-col items-start px-5 py-3 border-b-2 transition-colors whitespace-nowrap text-sm",
-                        selectedStore === store.name
-                          ? "border-primary text-foreground font-semibold"
-                          : "border-transparent text-muted-foreground hover:text-foreground",
-                      ].join(" ")}
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+              <div className="flex gap-0 overflow-x-auto">
+                {loadingStores
+                  ? [1,2,3,4].map(i => (
+                      <div key={i}
+                        className="h-12 w-28 m-1 rounded animate-pulse bg-muted" />
+                    ))
+                  : stores.map(store => (
+                      <button
+                        key={store.id}
+                        onClick={() => setSelectedStore(store.name)}
+                        className={[
+                          "flex flex-col items-start px-5 py-3 border-b-2 transition-colors whitespace-nowrap text-sm",
+                          selectedStore === store.name
+                            ? "border-primary text-foreground font-semibold"
+                            : "border-transparent text-muted-foreground hover:text-foreground",
+                        ].join(" ")}
+                        style={selectedStore === store.name ? { borderColor: STORE_COLORS[store.name] } : undefined}
+                      >
+                        <span>{store.name}</span>
+                        {store.latest_ad_date && (
+                          <span className="text-[10px] text-muted-foreground font-normal">
+                            {fmtDate(store.latest_ad_date)}
+                          </span>
+                        )}
+                      </button>
+                    ))
+                }
+              </div>
+
+              {/* Date picker — only meaningful in browse mode */}
+              {viewMode === "browse" && availableDates.length > 0 && (
+                <div className="flex items-center gap-2 py-2">
+                  <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="relative inline-block">
+                    <select
+                      value={selectedDate}
+                      onChange={e => setSelectedDate(e.target.value)}
+                      className="appearance-none bg-card border border-border rounded-lg pl-3 pr-8 py-1.5 text-sm text-foreground cursor-pointer"
                     >
-                      <span>{store.name}</span>
-                      {store.latest_ad_date && (
-                        <span className="text-[10px] text-muted-foreground font-normal">
-                          {fmtDate(store.latest_ad_date)}
-                        </span>
-                      )}
-                    </button>
-                  ))
-              }
+                      <option value="">Latest ad ({fmtDate(availableDates[0])})</option>
+                      {availableDates.slice(1).map(d => (
+                        <option key={d} value={d}>{fmtDate(d)}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -455,49 +508,65 @@ export default function HomePage() {
             ) : deals.length === 0 ? (
               <p className="text-muted-foreground text-sm">No deals found for this store.</p>
             ) : (
-              <div className="flex flex-col gap-8">
-                {Object.entries(dealsByCategory)
-                  .sort(([a], [b]) => a.localeCompare(b))
-                  .map(([cat, items]) => (
-                    <section key={cat}>
-                      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
-                        {cat} <span className="font-normal">({items.length})</span>
-                      </h3>
-                      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        {items.map(deal => (
-                          <div
-                            key={deal.id}
-                            className="rounded-xl border border-border bg-card p-4"
-                          >
-                            <p className="font-semibold text-foreground text-sm leading-snug">
-                              {deal.raw_product_name}
-                            </p>
-                            <div className="mt-3 flex items-baseline gap-2">
-                              <span className="text-xl font-bold text-primary">
-                                {fmtPrice(deal.sale_price)}
-                              </span>
-                              {deal.unit_size && (
-                                <span className="text-xs text-muted-foreground">
-                                  {deal.unit_size}
-                                </span>
-                              )}
-                            </div>
-                            {deal.bundle_quantity && deal.bundle_price && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {deal.bundle_quantity} for {fmtPrice(deal.bundle_price)}
-                              </p>
-                            )}
-                            {deal.special_conditions && (
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {deal.special_conditions}
-                              </p>
-                            )}
+              <div className="flex flex-col gap-10">
+                {sectionsByGroup.map(({ group, color, categories }) => (
+                  <div key={group}>
+                    <div className="flex items-center gap-2 mb-4">
+                      <span
+                        className="h-3 w-3 rounded-full shrink-0"
+                        style={{ backgroundColor: color }}
+                      />
+                      <h2 className="text-base font-bold text-foreground">
+                        {group}
+                      </h2>
+                      <span className="text-xs text-muted-foreground">
+                        ({categories.reduce((n, [, items]) => n + items.length, 0)} items)
+                      </span>
+                    </div>
+                    <div className="flex flex-col gap-6 pl-1">
+                      {categories.map(([cat, items]) => (
+                        <section key={cat}>
+                          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                            {cat} <span className="font-normal">({items.length})</span>
+                          </h3>
+                          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {items.map(deal => (
+                              <div
+                                key={deal.id}
+                                className="rounded-xl border border-border bg-card p-4 border-l-4"
+                                style={{ borderLeftColor: color }}
+                              >
+                                <p className="font-semibold text-foreground text-sm leading-snug">
+                                  {deal.raw_product_name}
+                                </p>
+                                <div className="mt-3 flex items-baseline gap-2">
+                                  <span className="text-xl font-bold text-primary">
+                                    {fmtPrice(deal.sale_price)}
+                                  </span>
+                                  {deal.unit_size && (
+                                    <span className="text-xs text-muted-foreground">
+                                      {deal.unit_size}
+                                    </span>
+                                  )}
+                                </div>
+                                {deal.bundle_quantity && deal.bundle_price && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {deal.bundle_quantity} for {fmtPrice(deal.bundle_price)}
+                                  </p>
+                                )}
+                                {deal.special_conditions && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {deal.special_conditions}
+                                  </p>
+                                )}
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
-                    </section>
-                  ))
-                }
+                        </section>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
@@ -506,25 +575,46 @@ export default function HomePage() {
         {/* TRENDS VIEW */}
         {!isSearching && viewMode === "trends" && (
           <div>
-            <div className="flex flex-col sm:flex-row gap-4 mb-6 items-start sm:items-center">
-              <div>
-                <label className="text-sm text-muted-foreground mr-2">Category:</label>
-                <div className="relative inline-block">
-                  <select
-                    value={selectedCat}
-                    onChange={e => setSelectedCat(e.target.value)}
-                    className="appearance-none bg-card border border-border rounded-lg px-3 py-2 pr-8 text-sm text-foreground cursor-pointer"
-                  >
-                    {CATEGORIES.map(c => (
-                      <option key={c} value={c}>{c}</option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <div className="flex flex-col sm:flex-row gap-4 mb-4 items-start sm:items-center justify-between">
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+                <div>
+                  <label className="text-sm text-muted-foreground mr-2">Category:</label>
+                  <div className="relative inline-block">
+                    <select
+                      value={selectedCat}
+                      onChange={e => setSelectedCat(e.target.value)}
+                      className="appearance-none bg-card border border-border rounded-lg px-3 py-2 pr-8 text-sm text-foreground cursor-pointer"
+                    >
+                      {CATEGORIES.map(c => (
+                        <option key={c} value={c}>{c}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                  </div>
                 </div>
+                <p className="text-sm text-muted-foreground">
+                  <strong style={{ color: categoryGroupFor(selectedCat).color }}>{selectedCat}</strong> at <strong>{selectedStore}</strong>
+                </p>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Showing average sale price for <strong>{selectedCat}</strong> at <strong>{selectedStore}</strong> over 24 weeks
-              </p>
+
+              {/* Zoom-out presets — how far back to fetch. The chart's own
+                  brush handles zooming in within whatever range is loaded. */}
+              <div className="flex gap-1">
+                {[8, 24, 52].map(w => (
+                  <button
+                    key={w}
+                    onClick={() => setTrendWeeks(w)}
+                    className={[
+                      "px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                      trendWeeks === w
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-card border border-border text-muted-foreground hover:text-foreground",
+                    ].join(" ")}
+                  >
+                    {w === 52 ? "1 year" : `${w} weeks`}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {loadingTrends ? (
@@ -539,7 +629,13 @@ export default function HomePage() {
                 </p>
               </div>
             ) : (
-              <PriceChart data={trendData} stores={trendStores} />
+              <PriceChart
+                data={trendData}
+                stores={trendStores}
+                title={`${selectedCat} price history`}
+                subtitle={`Weekly average and lowest sale price at ${selectedStore}`}
+                colors={{ "Average": categoryGroupFor(selectedCat).color, "Lowest seen": "#94a3b8" }}
+              />
             )}
           </div>
         )}
@@ -547,13 +643,56 @@ export default function HomePage() {
         {/* BASKET VIEW */}
         {!isSearching && viewMode === "basket" && (
           <div>
-            <div className="mb-6">
-              <h2 className="text-lg font-semibold text-foreground">
-                Inflation Basket Comparison
-              </h2>
-              <p className="text-sm text-muted-foreground mt-1">
-                Total cost of common staples per store, tracked weekly from ad prices.
-              </p>
+            <div className="mb-6 flex flex-col sm:flex-row sm:items-end justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">
+                  Inflation Basket Comparison
+                </h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Total cost of common staples per store, tracked weekly from ad prices.
+                </p>
+              </div>
+
+              {/* Store toggles — pick one, a few, or all 4 to compare */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  onClick={() => setVisibleStores(basketStores)}
+                  className={[
+                    "px-3 py-1.5 rounded-md text-xs font-medium border transition-colors",
+                    visibleStores.length === basketStores.length
+                      ? "bg-primary text-primary-foreground border-primary"
+                      : "bg-card border-border text-muted-foreground hover:text-foreground",
+                  ].join(" ")}
+                >
+                  Compare all 4
+                </button>
+                {basketStores.map(store => {
+                  const active = visibleStores.includes(store)
+                  return (
+                    <button
+                      key={store}
+                      onClick={() => setVisibleStores(prev =>
+                        active
+                          ? prev.filter(s => s !== store)
+                          : [...prev, store]
+                      )}
+                      className={[
+                        "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors",
+                        active
+                          ? "text-foreground border-transparent"
+                          : "bg-card border-border text-muted-foreground hover:text-foreground",
+                      ].join(" ")}
+                      style={active ? { backgroundColor: `${STORE_COLORS[store]}22`, borderColor: STORE_COLORS[store] } : undefined}
+                    >
+                      <span
+                        className="h-2 w-2 rounded-full shrink-0"
+                        style={{ backgroundColor: STORE_COLORS[store] ?? "#94a3b8" }}
+                      />
+                      {store}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
 
             {loadingBasket ? (
@@ -567,8 +706,23 @@ export default function HomePage() {
                   Not enough basket data yet — ingest more ads to see trends.
                 </p>
               </div>
+            ) : visibleStores.length === 0 ? (
+              <div className="flex items-center justify-center h-48 rounded-xl border border-border bg-card">
+                <p className="text-muted-foreground text-sm">
+                  Pick at least one store above to see its basket cost.
+                </p>
+              </div>
             ) : (
-              <PriceChart data={basketData} stores={basketStores} />
+              <PriceChart
+                data={basketData}
+                stores={visibleStores}
+                title="Inflation basket cost over time"
+                subtitle={
+                  visibleStores.length === basketStores.length
+                    ? "Comparing all 4 stores"
+                    : `Comparing ${visibleStores.join(", ")}`
+                }
+              />
             )}
           </div>
         )}
@@ -589,6 +743,19 @@ export default function HomePage() {
           </p>
         </div>
       </footer>
+
+      <FeedbackWidget
+        page={isSearching ? "search" : viewMode}
+        context={
+          isSearching
+            ? { query: debouncedQuery }
+            : viewMode === "browse"
+            ? { store: selectedStore, date: selectedDate || currentAdDate }
+            : viewMode === "trends"
+            ? { store: selectedStore, category: selectedCat, weeks: trendWeeks }
+            : { visibleStores }
+        }
+      />
     </div>
   )
 }
