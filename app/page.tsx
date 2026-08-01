@@ -86,7 +86,7 @@ type ViewMode = "browse" | "trends" | "basket"
 function fmtDate(d: string | null | undefined): string {
   if (!d) return "—"
   return new Date(d + "T00:00:00").toLocaleDateString("en-US", {
-    month: "long", day: "numeric",
+    month: "long", day: "numeric", year: "numeric",
   })
 }
 
@@ -111,7 +111,7 @@ function reshapeTrend(rows: TrendPoint[], avgLabel: string, minLabel: string): {
 } {
   const chartData: PriceHistoryData[] = rows.map(r => ({
     date: new Date(r.ad_date + "T00:00:00").toLocaleDateString("en-US", {
-      month: "short", day: "numeric",
+      month: "short", day: "numeric", year: "2-digit",
     }),
     [avgLabel]: r.avg_price,
     [minLabel]: r.min_price,
@@ -129,7 +129,7 @@ function reshapeBasket(rows: Record<string, any>[], stores: string[]): PriceHist
   return rows.map(row => {
     const entry: PriceHistoryData = {
       date: new Date(row.ad_date + "T00:00:00").toLocaleDateString("en-US", {
-        month: "short", day: "numeric",
+        month: "short", day: "numeric", year: "2-digit",
       }),
     }
     for (const store of stores) {
@@ -653,7 +653,7 @@ export default function HomePage() {
                 </p>
               </div>
 
-              {/* Store toggles — pick one, a few, or all 4 to compare */}
+              {/* Store toggles — click one to isolate it, or compare all 4 */}
               <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={() => setVisibleStores(basketStores)}
@@ -667,22 +667,18 @@ export default function HomePage() {
                   Compare all 4
                 </button>
                 {basketStores.map(store => {
-                  const active = visibleStores.includes(store)
+                  const isolated = visibleStores.length === 1 && visibleStores[0] === store
                   return (
                     <button
                       key={store}
-                      onClick={() => setVisibleStores(prev =>
-                        active
-                          ? prev.filter(s => s !== store)
-                          : [...prev, store]
-                      )}
+                      onClick={() => setVisibleStores(isolated ? basketStores : [store])}
                       className={[
                         "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border transition-colors",
-                        active
+                        isolated
                           ? "text-foreground border-transparent"
                           : "bg-card border-border text-muted-foreground hover:text-foreground",
                       ].join(" ")}
-                      style={active ? { backgroundColor: `${STORE_COLORS[store]}22`, borderColor: STORE_COLORS[store] } : undefined}
+                      style={isolated ? { backgroundColor: `${STORE_COLORS[store]}22`, borderColor: STORE_COLORS[store] } : undefined}
                     >
                       <span
                         className="h-2 w-2 rounded-full shrink-0"

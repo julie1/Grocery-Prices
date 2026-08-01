@@ -1,38 +1,32 @@
-// app/api/deals/route.ts
+// app/api/feedback/route.ts
 // =============================================================================
-// GET /api/deals
+// POST /api/feedback
 // =============================================================================
 //
-// Query params:
-//   store     — required. e.g. "Safeway"
-//   category  — optional filter by category name, e.g. "Chicken"
-//   limit     — default 60, max 200
-//   offset    — default 0
+// Body: { page: string, rating: "up" | "down", comment?: string, context?: object }
 //
-// Returns: { deals: DealRow[], total: number, ad_date: string|null, store: string }
-//
-// Powers the per-store "browse this week's circular" tab view.
-// Returns all price rows from the store's most recent ad, joined to category
-// names. Rows without a category_id are included (category_name will be null).
-//
-// Results sorted by category_name then sale_price.
+// Inserts a row into the `feedback` table (see supabase/create_feedback_table.sql
+// — run that migration once before this route will work). Write-only from
+// the frontend; there's no GET here since feedback is reviewed directly in
+// Supabase for now.
 // =============================================================================
 
 import { NextRequest, NextResponse } from "next/server"
 import { createServerClient }        from "@/lib/supabase"
 
-const CACHE = "public, s-maxage=300, stale-while-revalidate=3600"
+export async function POST(request: NextRequest) {
+  let body: any
+  try {
+    body = await request.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 })
+  }
 
-export async function GET(request: NextRequest) {
-  const sp       = request.nextUrl.searchParams
-  const store    = sp.get("store")?.trim()    ?? ""
-  const category = sp.get("category")?.trim() ?? ""
-  const limit    = Math.min(parseInt(sp.get("limit")  ?? "60",  10), 200)
-  const offset   = Math.max(parseInt(sp.get("offset") ?? "0",   10), 0)
+  const { page, rating, comment, context } = body ?? {}
 
-  if (!store) {
+  if (!page || (rating !== "up" && rating !== "down")) {
     return NextResponse.json(
-      { error: "store parameter is required" },
+      { error: "page and rating ('up' | 'down') are required" },
       { status: 400 }
     )
   }
@@ -40,74 +34,18 @@ export async function GET(request: NextRequest) {
   const sb = createServerClient()
 
   try {
-    // Step 1: find the most recent ad_id for this store
-    const { data: storeRow, error: storeErr } = await sb
-      .from("stores")
-      .select("id")
-      .ilike("name", store)
-      .single()
+    const { error } = await sb.from("feedback").insert({
+      page,
+      rating,
+      comment: comment?.trim() || null,
+      context: context ?? null,
+    })
 
-    if (storeErr || !storeRow) {
-      return NextResponse.json({ error: "Store not found" }, { status: 404 })
-    }
-
-    const { data: latestAd, error: adErr } = await sb
-      .from("ads")
-      .select("id, ad_date")
-      .eq("store_id", storeRow.id)
-      .order("ad_date", { ascending: false })
-      .limit(1)
-      .single()
-
-    if (adErr || !latestAd) {
-      return NextResponse.json(
-        { deals: [], total: 0, ad_date: null, store },
-        { headers: { "Cache-Control": CACHE } }
-      )
-    }
-
-    // Step 2: fetch price rows for that ad, joined to categories
-    let query = sb
-      .from("prices")
-      .select(
-        "id, raw_product_name, sale_price, price_per_unit, unit_size, " +
-        "special_conditions, bundle_quantity, bundle_price, category_id, " +
-        "categories(name)",
-        { count: "exact" }
-      )
-      .eq("ad_id", latestAd.id)
-      .order("categories(name)", { ascending: true,  nullsFirst: false })
-      .order("sale_price",       { ascending: true })
-      .range(offset, offset + limit - 1)
-
-    if (category) {
-      // Filter via the joined category name
-      const { data: catRow } = await sb
-        .from("categories")
-        .select("id")
-        .ilike("name", category)
-        .single()
-      if (catRow) {
-        query = query.eq("category_id", catRow.id)
-      }
-    }
-
-    const { data, error, count } = await query
     if (error) throw error
 
-    // Flatten category join for convenience
-    const deals = (data ?? []).map((row: any) => ({
-      ...row,
-      category_name: row.categories?.name ?? null,
-      categories: undefined,
-    }))
-
-    return NextResponse.json(
-      { deals, total: count ?? 0, ad_date: latestAd.ad_date, store },
-      { headers: { "Cache-Control": CACHE } }
-    )
+    return NextResponse.json({ ok: true })
   } catch (err) {
-    console.error("[/api/deals]", err)
-    return NextResponse.json({ error: "Failed to load deals" }, { status: 500 })
+    console.error("[/api/feedback]", err)
+    return NextResponse.json({ error: "Failed to save feedback" }, { status: 500 })
   }
 }
