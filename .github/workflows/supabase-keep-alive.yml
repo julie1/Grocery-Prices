@@ -9,8 +9,12 @@ jobs:
     steps:
       - name: Ping Supabase database
         run: |
-          curl -fsS -X GET "https://teudindahxbeiretiycf.supabase.co/rest/v1/prices?select=*&limit=1" \
-            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}"
+          curl -fsS -X POST "https://teudindahxbeiretiycf.supabase.co/rest/v1/keepalive" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: resolution=merge-duplicates" \
+            -d '{"id": 1, "last_ping": "now()"}'
       - name: Ping Supabase Management API
         run: |
           curl -fsS --max-time 10 -X GET "https://api.supabase.io/v1/projects/teudindahxbeiretiycf" \
