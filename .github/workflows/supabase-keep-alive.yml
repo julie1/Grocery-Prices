@@ -9,12 +9,13 @@ jobs:
     steps:
       - name: Ping Supabase database
         run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           curl -fsS -X POST "https://teudindahxbeiretiycf.supabase.co/rest/v1/keepalive" \
             -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
             -H "Content-Type: application/json" \
             -H "Prefer: resolution=merge-duplicates" \
-            -d "{\"id\": 1, \"last_ping\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"}"$(date -u +"%Y-%m-%dT%H:%M:%SZ") generates a proper UTC ISO 8601 timestamp at
+            -d "{\"id\": 1, \"last_ping\": \"$TIMESTAMP\"}"
       - name: Ping Supabase Management API
         run: |
           curl -fsS --max-time 10 -X GET "https://api.supabase.io/v1/projects/teudindahxbeiretiycf" \
