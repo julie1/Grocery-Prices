@@ -14,7 +14,7 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}" \
             -H "Content-Type: application/json" \
             -H "Prefer: resolution=merge-duplicates" \
-            -d '{"id": 1, "last_ping": "now()"}'
+            -d "{\"id\": 1, \"last_ping\": \"$(date -u +"%Y-%m-%dT%H:%M:%SZ")\"}"$(date -u +"%Y-%m-%dT%H:%M:%SZ") generates a proper UTC ISO 8601 timestamp at
       - name: Ping Supabase Management API
         run: |
           curl -fsS --max-time 10 -X GET "https://api.supabase.io/v1/projects/teudindahxbeiretiycf" \
