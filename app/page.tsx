@@ -171,6 +171,7 @@ export default function HomePage() {
   const [searchResults,  setSearchResults]  = useState<SearchResult[]>([])
   const [trendData,      setTrendData]      = useState<PriceHistoryData[]>([])
   const [trendStores,    setTrendStores]    = useState<string[]>([])
+  const [trendFiltered,  setTrendFiltered]  = useState<boolean>(false)
   const [basketData,     setBasketData]     = useState<PriceHistoryData[]>([])
   const [basketStores,   setBasketStores]   = useState<string[]>([])
   const [visibleStores,  setVisibleStores]  = useState<string[]>([])
@@ -241,6 +242,7 @@ export default function HomePage() {
         const { chartData, storeNames } = reshapeTrend(data.trend ?? [], "Average", "Lowest seen")
         setTrendData(chartData)
         setTrendStores(storeNames)
+        setTrendFiltered(!!data.filtered)
       })
       .catch(() => setError("Could not load trend data"))
       .finally(() => setLoadingTrends(false))
@@ -596,6 +598,23 @@ export default function HomePage() {
               <p className="text-sm text-muted-foreground">
                 <strong style={{ color: categoryGroupFor(selectedCat).color }}>{selectedCat}</strong> at <strong>{selectedStore}</strong>
               </p>
+              {!loadingTrends && trendData.length > 0 && (
+                <span
+                  className={[
+                    "text-[11px] px-2 py-0.5 rounded-full border",
+                    trendFiltered
+                      ? "border-primary/40 text-primary bg-primary/10"
+                      : "border-border text-muted-foreground bg-muted",
+                  ].join(" ")}
+                  title={
+                    trendFiltered
+                      ? "Tracking specific representative products for this category"
+                      : "Averaging every item tagged with this category — no representative-product filter defined yet"
+                  }
+                >
+                  {trendFiltered ? "Tracking representative products" : "Category-wide average"}
+                </span>
+              )}
             </div>
 
             {loadingTrends ? (
