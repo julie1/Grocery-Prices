@@ -6,11 +6,16 @@
 // Query params:
 //   weeks  — how many weeks back, default 12, max 52
 //   debug  — "1" to return diagnostics instead of the normal basket response.
-//            Without &item=..., returns a single-latest-week, all-items
-//            overview. With &item=Milk (basket_item name, case-insensitive),
-//            returns that item's match diagnostics across every week in the
-//            `weeks` window — use this to check whether an item is just
-//            absent from a given week's ad vs. a genuine matching problem.
+//            Without &item=..., returns an all-items overview across every
+//            week in the `weeks` window: { weeks: [{ ad_date, itemDiagnostics }] }.
+//            With &item=Milk (basket_item name, case-insensitive), returns
+//            that one item's match diagnostics across every week instead:
+//            { item, weeks: [{ ad_date, stores }] }.
+//            Use either to check whether an item is just absent from a given
+//            week's ad vs. a genuine matching problem. sample_raw_names_no_match
+//            is a sample of raw product names for that store/week that did NOT
+//            match this item's keywords — useful for spotting a keyword that's
+//            too narrow (or an exclude that's too broad).
 //
 // Returns: { basket: BasketWeek[], stores: string[] }
 //
@@ -255,46 +260,56 @@ export async function GET(request: NextRequest) {
         )
       }
 
-      // No item filter — original single-latest-week, all-items overview.
-      const latestDate = allDates[allDates.length - 1]
-      const latestAdIdsByStore = new Map<number, number[]>() // store_id -> ad_ids on latestDate
+      // No item filter — diagnostics across every week in the `weeks`
+      // window (previously only the single latest week, unlike
+      // /api/categories?debug=1 which already covered several weeks).
+      const adsByDateAndStoreAll = new Map<string, Map<number, number[]>>()
       for (const ad of ads ?? []) {
-        if (ad.ad_date !== latestDate) continue
-        const list = latestAdIdsByStore.get(ad.store_id) ?? []
+        if (!adsByDateAndStoreAll.has(ad.ad_date)) adsByDateAndStoreAll.set(ad.ad_date, new Map())
+        const storeMap = adsByDateAndStoreAll.get(ad.ad_date)!
+        const list = storeMap.get(ad.store_id) ?? []
         list.push(ad.id)
-        latestAdIdsByStore.set(ad.store_id, list)
+        storeMap.set(ad.store_id, list)
       }
 
-      const itemDiagnostics = (basketItems ?? []).map((item: any) => {
-        const storeName = storeIdToName[item.store_id] ?? `store_id ${item.store_id}`
-        const adIdsThisWeek = latestAdIdsByStore.get(item.store_id) ?? []
-        const pricesThisStoreWeek = (prices ?? []).filter((p: any) =>
-          adIdsThisWeek.includes(p.ad_id)
-        )
-        const keywords: string[] = item.match_keywords ?? []
-        const excludes: string[] = item.exclude_keywords ?? []
-        const matches = pricesThisStoreWeek.filter((p: any) => {
-          const name = (p.raw_product_name ?? "").toLowerCase()
-          if (excludes.some((ex: string) => name.includes(ex.toLowerCase()))) return false
-          return keywords.some((kw: string) => name.includes(kw.toLowerCase()))
+      const weeksOut = allDates.map((ad_date) => {
+        const storeMap = adsByDateAndStoreAll.get(ad_date) ?? new Map()
+        const itemDiagnostics = (basketItems ?? []).map((item: any) => {
+          const storeName = storeIdToName[item.store_id] ?? `store_id ${item.store_id}`
+          const adIdsThisWeek = storeMap.get(item.store_id) ?? []
+          const pricesThisStoreWeek = (prices ?? []).filter((p: any) =>
+            adIdsThisWeek.includes(p.ad_id)
+          )
+          const keywords: string[] = item.match_keywords ?? []
+          const excludes: string[] = item.exclude_keywords ?? []
+          const matches = pricesThisStoreWeek.filter((p: any) => {
+            const name = (p.raw_product_name ?? "").toLowerCase()
+            if (excludes.some((ex: string) => name.includes(ex.toLowerCase()))) return false
+            return keywords.some((kw: string) => name.includes(kw.toLowerCase()))
+          })
+          // Bugfix: this used to be pricesThisStoreWeek.slice(0, 8) — a
+          // generic sample that included matches, not actual non-matches.
+          // Exclude the matched rows (by reference — matches is a filtered
+          // subset of the same array) before sampling.
+          const nonMatches = pricesThisStoreWeek.filter((p: any) => !matches.includes(p))
+          return {
+            basket_item: item.name,
+            store: storeName,
+            keywords,
+            excludes,
+            total_prices_that_store_that_week: pricesThisStoreWeek.length,
+            matched_count: matches.length,
+            sample_raw_names_no_match: nonMatches.slice(0, 8).map((p: any) => p.raw_product_name),
+          }
         })
-        return {
-          basket_item: item.name,
-          store: storeName,
-          keywords,
-          excludes,
-          total_prices_that_store_that_week: pricesThisStoreWeek.length,
-          matched_count: matches.length,
-          sample_raw_names_no_match: pricesThisStoreWeek
-            .slice(0, 8)
-            .map((p: any) => p.raw_product_name),
-        }
+        return { ad_date, itemDiagnostics }
       })
 
       return NextResponse.json(
-        { latestDate, itemDiagnostics },
+        { weeks: weeksOut },
         { headers: { "Cache-Control": "no-store" } }
       )
+      
     }
 
     const basket = allDates.map((ad_date) => {
