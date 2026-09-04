@@ -1,0 +1,678 @@
+[
+  {
+    "category_id": 117,
+    "name": "Bacon",
+    "match_keywords": [
+      "bacon"
+    ],
+    "exclude_keywords": [
+      "turkey bacon",
+      "bacon bits",
+      "bacon ranch",
+      "canadian bacon",
+      "bacon cheddar burger",
+      "cottage bacon"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 121,
+    "name": "Beef (Other)",
+    "match_keywords": [
+      "steak",
+      "roast",
+      "sirloin",
+      "ribeye",
+      "rib eye",
+      "t-bone",
+      "tbone",
+      "flank steak",
+      "brisket",
+      "short rib",
+      "stew meat",
+      "chuck roast",
+      "tri tip",
+      "tri-tip",
+      "porterhouse",
+      "new york strip",
+      "top round",
+      "bottom round",
+      "london broil",
+      "kabob",
+      "kebab",
+      "flank",
+      "kebob",
+      "fajita"
+    ],
+    "exclude_keywords": [
+      "ground",
+      "jerky",
+      "broth",
+      "stock",
+      "bouillon",
+      "ravioli",
+      "hash",
+      "sausage",
+      "summer sausage",
+      "deli",
+      "lunch meat",
+      "frozen meal",
+      "pot pie",
+      "tuna steak",
+      "ahi tuna",
+      "swordfish steak",
+      "salmon steak",
+      "halibut steak",
+      "cod steak",
+      "roasted garlic",
+      "garlic oil",
+      "roasted chicken",
+      "roasted almonds",
+      "roasted nuts",
+      "roasted vegetables"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 133,
+    "name": "Beverages",
+    "match_keywords": [
+      "coffee",
+      "tea",
+      "soda",
+      "juice",
+      "water",
+      "sports drink",
+      "energy drink",
+      "lemonade",
+      "kombucha",
+      "2 liter",
+      "12 pack",
+      "24 pack",
+      "sparkling water"
+    ],
+    "exclude_keywords": [
+      "creamer",
+      "coffee cake",
+      "coffee mate",
+      "syrup",
+      "seasoning",
+      "filter",
+      "mug",
+      "kettle",
+      "maker",
+      "steamers",
+      "steamfresh",
+      "chateau",
+      "cutwater",
+      "micellar",
+      "bouquet",
+      "beer",
+      "wine",
+      "vodka",
+      "rum",
+      "whisky",
+      "whiskey",
+      "tequila",
+      "bourbon",
+      "cellars",
+      "brewing",
+      "hard seltzer"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 124,
+    "name": "Bread",
+    "match_keywords": [
+      "bread"
+    ],
+    "exclude_keywords": [
+      "breadstick",
+      "cornbread",
+      "bread crumb",
+      "banana bread",
+      "garlic bread",
+      "pumpkin bread",
+      "english muffin",
+      "bagel",
+      "bun",
+      "roll",
+      "waffle",
+      "donut"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 114,
+    "name": "Butter",
+    "match_keywords": [
+      "butter"
+    ],
+    "exclude_keywords": [
+      "peanut butter",
+      "apple butter",
+      "almond butter",
+      "croissant",
+      "buttermilk",
+      "butterball",
+      "butterfinger",
+      "butterfly"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 126,
+    "name": "Canned Goods",
+    "match_keywords": [
+      "canned tomato",
+      "tuna"
+    ],
+    "exclude_keywords": [
+      "tomato sauce",
+      "tomato paste",
+      "tomato juice",
+      "tomato soup",
+      "salsa",
+      "tuna helper",
+      "tuna salad kit"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 125,
+    "name": "Cereal",
+    "match_keywords": [
+      "cereal",
+      "granola",
+      "oatmeal",
+      "oats"
+    ],
+    "exclude_keywords": [
+      "granola bar",
+      "cereal bar",
+      "protein bar",
+      "bars",
+      "pop-tarts",
+      "fruit snacks",
+      "treat"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 115,
+    "name": "Cheese",
+    "match_keywords": [
+      "cheese"
+    ],
+    "exclude_keywords": [
+      "cheesecake",
+      "mac & cheese",
+      "macaroni",
+      "cream cheese",
+      "cottage cheese",
+      "string cheese",
+      "cheese dip",
+      "nacho"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 119,
+    "name": "Chicken",
+    "match_keywords": [
+      "chicken breast",
+      "chicken thigh",
+      "chicken drumstick",
+      "chicken wing",
+      "whole chicken",
+      "chicken leg",
+      "chicken tenderloin",
+      "split chicken",
+      "chicken quarter",
+      "chicken drumette",
+      "ground chicken",
+      "chicken kabob",
+      "ground chicken",
+      "chicken kabob"
+    ],
+    "exclude_keywords": [
+      "nugget",
+      "breaded",
+      "popcorn chicken",
+      "fried chicken",
+      "rotisserie",
+      "broth",
+      "stock",
+      "bouillon",
+      "sausage",
+      "lunch meat",
+      "salad kit",
+      "pot pie",
+      "noodle soup",
+      "frozen meal",
+      "canned chicken",
+      "chicken spread"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 135,
+    "name": "Cooking Essentials",
+    "match_keywords": [
+      "flour",
+      "vegetable oil",
+      "salt",
+      "yeast",
+      "vanilla extract",
+      "baking soda",
+      "baking powder",
+      "seasoning",
+      "olive oil",
+      "granulated sugar",
+      "brown sugar",
+      "powdered sugar",
+      "cane sugar",
+      "sugar bag",
+      "ground cinnamon",
+      "black pepper",
+      "chili powder",
+      "garlic powder",
+      "onion powder",
+      "paprika",
+      "cumin",
+      "spice blend"
+    ],
+    "exclude_keywords": [
+      "candy",
+      "old spice",
+      "pumpkin spice",
+      "no sugar added",
+      "sugar added",
+      "zero sugar",
+      "low sugar",
+      "reduced sugar",
+      "sugar free"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 123,
+    "name": "Deli Meat",
+    "match_keywords": [
+      "deli meat",
+      "sliced turkey",
+      "sliced ham",
+      "salami",
+      "pastrami",
+      "bologna",
+      "deli ham",
+      "deli turkey",
+      "lunch meat",
+      "sandwich meat"
+    ],
+    "exclude_keywords": [
+      "whole ham",
+      "spiral ham",
+      "canned ham"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 112,
+    "name": "Eggs",
+    "match_keywords": [
+      "eggs"
+    ],
+    "exclude_keywords": [
+      "egg roll",
+      "eggnog",
+      "eggo",
+      "easter",
+      "candy",
+      "dye",
+      "deviled",
+      "eggland",
+      "fillable",
+      "egg tray",
+      "egg cup"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 132,
+    "name": "Fresh Produce",
+    "match_keywords": [
+      "apple",
+      "banana",
+      "orange",
+      "potato",
+      "onion",
+      "carrot",
+      "lettuce",
+      "broccoli",
+      "tomato",
+      "avocado",
+      "grape",
+      "strawberr",
+      "bell pepper",
+      "cucumber",
+      "celery",
+      "lemon",
+      "lime",
+      "garlic",
+      "spinach",
+      "cabbage",
+      "cauliflower",
+      "mushroom",
+      "corn",
+      "watermelon",
+      "pineapple",
+      "blueberr",
+      "raspberr",
+      "blackberr",
+      "peach",
+      "nectarine",
+      "plum",
+      "asparagus",
+      "cantaloupe",
+      "melon",
+      "chile pepper",
+      "chili pepper"
+    ],
+    "exclude_keywords": [
+      "dried",
+      "canned",
+      "juice",
+      "chip",
+      "frozen",
+      "sauce",
+      "salsa",
+      "fruit snack",
+      "fruit cup",
+      "fruit leather",
+      "potato chip",
+      "potato salad",
+      "tomato sauce",
+      "tomato paste",
+      "onion ring",
+      "garlic bread",
+      "garlic powder",
+      "ketchup",
+      "snapple",
+      "salad",
+      "stuffed",
+      "corn oil",
+      "banana boat",
+      "sun care",
+      "sun stick",
+      "jam",
+      "jelly",
+      "corner",
+      "ore-ida"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 129,
+    "name": "Frozen Meals",
+    "match_keywords": [
+      "frozen meal",
+      "frozen entree",
+      "frozen dinner",
+      "pot pie",
+      "frozen pizza",
+      "microwave meal",
+      "tv dinner",
+      "lean cuisine",
+      "hot pocket"
+    ],
+    "exclude_keywords": [
+      "frozen vegetable",
+      "ice cream",
+      "frozen fruit",
+      "frozen waffle"
+    ],
+    "is_active": false
+  },
+  {
+    "category_id": 130,
+    "name": "Frozen Vegetables",
+    "match_keywords": [
+      "frozen vegetable"
+    ],
+    "exclude_keywords": [
+      "frozen meal",
+      "frozen entree",
+      "veggie burger",
+      "veggie straw"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 118,
+    "name": "Ground Beef",
+    "match_keywords": [
+      "ground beef"
+    ],
+    "exclude_keywords": [
+      "ground turkey",
+      "ground pork",
+      "ground bison",
+      "wagyu"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 136,
+    "name": "Household & Cleaning",
+    "match_keywords": [
+      "laundry detergent",
+      "paper towel",
+      "bath tissue",
+      "toilet paper",
+      "dish soap",
+      "dish detergent",
+      "surface cleaner",
+      "disinfecting wipes",
+      "trash bag",
+      "fabric softener",
+      "dryer sheet"
+    ],
+    "exclude_keywords": [
+      "napkin",
+      "facial tissue",
+      "kleenex",
+      "air freshener"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 131,
+    "name": "Ice Cream",
+    "match_keywords": [
+      "ice cream",
+      "frozen yogurt",
+      "gelato",
+      "sorbet",
+      "popsicle",
+      "ice cream bar",
+      "ice cream sandwich"
+    ],
+    "exclude_keywords": [
+      "ice cream cake"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 113,
+    "name": "Milk",
+    "match_keywords": [
+      "milk"
+    ],
+    "exclude_keywords": [
+      "almondmilk",
+      "oatmilk",
+      "oat milk",
+      "coconutmilk",
+      "coconut milk",
+      "soy milk",
+      "cashew milk",
+      "flax milk",
+      "hemp milk",
+      "goat milk",
+      "chocolate milk",
+      "condensed",
+      "evaporated",
+      "buttermilk",
+      "protein",
+      "eggnog",
+      "creamer",
+      "milk-bone",
+      "muscle milk",
+      "milkboy"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 128,
+    "name": "Pasta & Rice",
+    "match_keywords": [
+      "pasta",
+      "spaghetti",
+      "macaroni",
+      "noodle",
+      "rice"
+    ],
+    "exclude_keywords": [
+      "pasta sauce",
+      "pasta salad",
+      "mac & cheese",
+      "ramen",
+      "rice pasta",
+      "rice cake",
+      "rice krispie",
+      "rice milk",
+      "rice pudding",
+      "fried rice",
+      "rice bowl",
+      "rice mix"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 120,
+    "name": "Pork",
+    "match_keywords": [
+      "pork chop",
+      "pork loin",
+      "pork shoulder",
+      "pork roast",
+      "pork tenderloin",
+      "pork rib",
+      "pork belly",
+      "ham steak",
+      "pork sausage",
+      "spareribs",
+      "back rib",
+      "loin",
+      "chop",
+      "ground pork",
+      "sausage"
+    ],
+    "exclude_keywords": [
+      "bacon",
+      "pepperoni",
+      "deli ham",
+      "canned ham",
+      "turkey sausage",
+      "chicken sausage",
+      "veggie sausage",
+      "plant-based sausage",
+      "vegetarian sausage"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 122,
+    "name": "Seafood",
+    "match_keywords": [
+      "salmon",
+      "shrimp",
+      "tilapia",
+      "cod",
+      "tuna steak",
+      "crab",
+      "scallop",
+      "halibut",
+      "fish fillet",
+      "lobster",
+      "sole",
+      "clam",
+      "oyster"
+    ],
+    "exclude_keywords": [
+      "tuna helper",
+      "imitation crab",
+      "fish stick",
+      "fish sandwich",
+      "frozen meal",
+      "canned tuna",
+      "oyster bay"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 134,
+    "name": "Snacks",
+    "match_keywords": [
+      "chip",
+      "cracker",
+      "pretzel",
+      "popcorn",
+      "trail mix",
+      "snack bar",
+      "cookie",
+      "candy",
+      "chocolate",
+      "gummy",
+      "peanut",
+      "nuts",
+      "almonds",
+      "cashews"
+    ],
+    "exclude_keywords": [
+      "dip",
+      "cracker barrel",
+      "brownie mix",
+      "bouquet"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 127,
+    "name": "Soup",
+    "match_keywords": [
+      "soup"
+    ],
+    "exclude_keywords": [
+      "soup mix",
+      "soup bowl",
+      "ramen",
+      "instant soup"
+    ],
+    "is_active": true
+  },
+  {
+    "category_id": 116,
+    "name": "Yogurt",
+    "match_keywords": [
+      "yogurt"
+    ],
+    "exclude_keywords": [
+      "yogurt covered",
+      "frozen yogurt"
+    ],
+    "is_active": true
+  }
+]

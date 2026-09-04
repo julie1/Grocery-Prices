@@ -1,0 +1,356 @@
+[
+  {
+    "category_id": 117,
+    "input": "Kroger Thick Cut Bacon",
+    "should_match": true,
+    "label": "bacon"
+  },
+  {
+    "category_id": 117,
+    "input": "Jennie-O Turkey Bacon",
+    "should_match": false,
+    "label": "turkey bacon excluded"
+  },
+  {
+    "category_id": 121,
+    "input": "Choice Ribeye Steak",
+    "should_match": true,
+    "label": "ribeye/steak"
+  },
+  {
+    "category_id": 121,
+    "input": "Beef Brisket",
+    "should_match": true,
+    "label": "brisket"
+  },
+  {
+    "category_id": 121,
+    "input": "Roasted Almonds",
+    "should_match": false,
+    "label": "roasted almonds excluded (defensive - shouldn't reach this category anyway)"
+  },
+  {
+    "category_id": 121,
+    "input": "Beef Stew Meat",
+    "should_match": true,
+    "label": "'stew meat' IS a listed match keyword - correctly matches (my earlier expectation was wrong, not a code bug)"
+  },
+  {
+    "category_id": 133,
+    "input": "Simple Truth Sparkling Water",
+    "should_match": true,
+    "label": "sparkling water"
+  },
+  {
+    "category_id": 133,
+    "input": "Coffee Mate Creamer",
+    "should_match": false,
+    "label": "coffee mate excluded"
+  },
+  {
+    "category_id": 133,
+    "input": "McCormick Steak Seasoning",
+    "should_match": false,
+    "label": "'seasoning' excluded - guards against 'tea' substring collision even after classifier fix"
+  },
+  {
+    "category_id": 124,
+    "input": "Franz Wide Pan Bread",
+    "should_match": true,
+    "label": "bread"
+  },
+  {
+    "category_id": 124,
+    "input": "Eggo Waffles",
+    "should_match": false,
+    "label": "waffle excluded"
+  },
+  {
+    "category_id": 114,
+    "input": "Kroger Sweet Cream Butter",
+    "should_match": true,
+    "label": "butter"
+  },
+  {
+    "category_id": 114,
+    "input": "Jif Peanut Butter",
+    "should_match": false,
+    "label": "peanut butter excluded"
+  },
+  {
+    "category_id": 126,
+    "input": "Hunt's Canned Diced Tomatoes",
+    "should_match": true,
+    "label": "GAP: 'canned tomato' requires exact contiguous phrase, doesn't match 'canned diced tomatoes' - real product naming pattern likely under-matched"
+  },
+  {
+    "category_id": 126,
+    "input": "StarKist Chunk Light Tuna",
+    "should_match": true,
+    "label": "tuna"
+  },
+  {
+    "category_id": 126,
+    "input": "Hunt's Tomato Sauce",
+    "should_match": false,
+    "label": "tomato sauce excluded"
+  },
+  {
+    "category_id": 125,
+    "input": "Kelloggs Frosted Flakes Cereal",
+    "should_match": true,
+    "label": "cereal"
+  },
+  {
+    "category_id": 125,
+    "input": "Nature Valley Granola Bars",
+    "should_match": false,
+    "label": "granola bar excluded despite containing 'granola'"
+  },
+  {
+    "category_id": 115,
+    "input": "Tillamook Sharp Cheddar Cheese",
+    "should_match": true,
+    "label": "cheese"
+  },
+  {
+    "category_id": 115,
+    "input": "Kraft Mac & Cheese",
+    "should_match": false,
+    "label": "mac & cheese excluded"
+  },
+  {
+    "category_id": 115,
+    "input": "Philadelphia Cream Cheese",
+    "should_match": false,
+    "label": "cream cheese excluded"
+  },
+  {
+    "category_id": 119,
+    "input": "Draper Valley Boneless Chicken Breast",
+    "should_match": true,
+    "label": "chicken breast"
+  },
+  {
+    "category_id": 119,
+    "input": "Tyson Chicken Nuggets",
+    "should_match": false,
+    "label": "nugget excluded"
+  },
+  {
+    "category_id": 119,
+    "input": "Rotisserie Chicken",
+    "should_match": false,
+    "label": "rotisserie excluded"
+  },
+  {
+    "category_id": 135,
+    "input": "McCormick Black Pepper",
+    "should_match": true,
+    "label": "black pepper"
+  },
+  {
+    "category_id": 135,
+    "input": "Lawry's Steak Seasoning",
+    "should_match": true,
+    "label": "seasoning"
+  },
+  {
+    "category_id": 135,
+    "input": "Old Spice Deodorant",
+    "should_match": false,
+    "label": "'old spice' excluded - guards against bare 'spice'-adjacent false positive"
+  },
+  {
+    "category_id": 123,
+    "input": "Boar's Head Deli Ham",
+    "should_match": true,
+    "label": "deli ham"
+  },
+  {
+    "category_id": 123,
+    "input": "Kroger Spiral Ham",
+    "should_match": false,
+    "label": "spiral ham excluded"
+  },
+  {
+    "category_id": 112,
+    "input": "Kroger Cage Free Eggs",
+    "should_match": true,
+    "label": "eggs (plural keyword)"
+  },
+  {
+    "category_id": 112,
+    "input": "Rockview Egg Nog",
+    "should_match": false,
+    "label": "eggnog excluded (though 'eggs' plural likely wouldn't match 'egg nog' anyway - verify)"
+  },
+  {
+    "category_id": 112,
+    "input": "Yoke's Large Egg",
+    "should_match": false,
+    "label": "EDGE CASE: singular 'Egg' - keyword is plural 'eggs', check if this is a real gap"
+  },
+  {
+    "category_id": 132,
+    "input": "Signature SELECT Bananas",
+    "should_match": true,
+    "label": "banana"
+  },
+  {
+    "category_id": 132,
+    "input": "Lay's Potato Chips",
+    "should_match": false,
+    "label": "potato chip excluded"
+  },
+  {
+    "category_id": 132,
+    "input": "Ore-Ida Frozen Potatoes",
+    "should_match": false,
+    "label": "ore-ida excluded (defensive, catches frozen potato brand)"
+  },
+  {
+    "category_id": 129,
+    "input": "Stouffer's Frozen Lasagna Dinner",
+    "should_match": true,
+    "label": "GAP (filter currently is_active=false): 'frozen dinner' requires exact contiguous phrase, doesn't match 'frozen lasagna dinner'"
+  },
+  {
+    "category_id": 130,
+    "input": "Birds Eye Frozen Mixed Vegetables",
+    "should_match": true,
+    "label": "GAP: 'frozen vegetable' requires exact contiguous phrase, doesn't match 'frozen mixed vegetables' - likely under-matching real product names"
+  },
+  {
+    "category_id": 130,
+    "input": "Boca Veggie Burger",
+    "should_match": false,
+    "label": "veggie burger excluded"
+  },
+  {
+    "category_id": 118,
+    "input": "80% Lean Ground Beef",
+    "should_match": true,
+    "label": "ground beef"
+  },
+  {
+    "category_id": 118,
+    "input": "Jennie-O Ground Turkey",
+    "should_match": false,
+    "label": "ground turkey excluded"
+  },
+  {
+    "category_id": 136,
+    "input": "Bounty Paper Towels",
+    "should_match": true,
+    "label": "paper towel"
+  },
+  {
+    "category_id": 136,
+    "input": "Kleenex Facial Tissue",
+    "should_match": false,
+    "label": "facial tissue excluded"
+  },
+  {
+    "category_id": 131,
+    "input": "Tillamook Vanilla Ice Cream",
+    "should_match": true,
+    "label": "ice cream"
+  },
+  {
+    "category_id": 131,
+    "input": "Carvel Ice Cream Cake",
+    "should_match": false,
+    "label": "ice cream cake excluded"
+  },
+  {
+    "category_id": 113,
+    "input": "Darigold Whole Milk",
+    "should_match": true,
+    "label": "milk"
+  },
+  {
+    "category_id": 113,
+    "input": "Silk Almondmilk",
+    "should_match": false,
+    "label": "almondmilk excluded"
+  },
+  {
+    "category_id": 128,
+    "input": "Barilla Spaghetti",
+    "should_match": true,
+    "label": "spaghetti/pasta"
+  },
+  {
+    "category_id": 128,
+    "input": "Ragu Pasta Sauce",
+    "should_match": false,
+    "label": "pasta sauce excluded"
+  },
+  {
+    "category_id": 120,
+    "input": "Smithfield Pork Chops",
+    "should_match": true,
+    "label": "pork chop / chop"
+  },
+  {
+    "category_id": 120,
+    "input": "Hormel Pepperoni",
+    "should_match": false,
+    "label": "pepperoni excluded"
+  },
+  {
+    "category_id": 122,
+    "input": "Fresh Atlantic Salmon Fillet",
+    "should_match": true,
+    "label": "salmon"
+  },
+  {
+    "category_id": 122,
+    "input": "StarKist Canned Tuna",
+    "should_match": false,
+    "label": "canned tuna excluded"
+  },
+  {
+    "category_id": 134,
+    "input": "Lay's Potato Chips",
+    "should_match": true,
+    "label": "chip"
+  },
+  {
+    "category_id": 134,
+    "input": "Hidden Valley Ranch Dip",
+    "should_match": false,
+    "label": "dip excluded"
+  },
+  {
+    "category_id": 134,
+    "input": "Krispy Kreme Donuts",
+    "should_match": true,
+    "label": "POTENTIAL COLLISION CHECK: 'donuts' contains 'nuts' as a substring - verify actual result"
+  },
+  {
+    "category_id": 127,
+    "input": "Campbell's Chicken Noodle Soup",
+    "should_match": true,
+    "label": "soup"
+  },
+  {
+    "category_id": 127,
+    "input": "Maruchan Instant Soup",
+    "should_match": false,
+    "label": "instant soup excluded"
+  },
+  {
+    "category_id": 116,
+    "input": "Chobani Greek Yogurt",
+    "should_match": true,
+    "label": "yogurt"
+  },
+  {
+    "category_id": 116,
+    "input": "Yoplait Frozen Yogurt Bar",
+    "should_match": false,
+    "label": "frozen yogurt excluded"
+  }
+]

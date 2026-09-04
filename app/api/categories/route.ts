@@ -39,11 +39,9 @@ import { createServerClient }        from "@/lib/supabase"
 
 const CACHE = "public, s-maxage=300, stale-while-revalidate=3600"
 
-function matchesFilter(name: string, keywords: string[], excludes: string[]): boolean {
-  const n = name.toLowerCase()
-  if (excludes.some(ex => n.includes(ex.toLowerCase()))) return false
-  return keywords.some(kw => n.includes(kw.toLowerCase()))
-}
+// remove the local function, add this import near the top:
+import { matchesFilter } from "@/lib/trendFilterMatch"
+
 
 export async function GET(request: NextRequest) {
   const sp       = request.nextUrl.searchParams
