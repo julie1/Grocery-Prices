@@ -46,7 +46,7 @@ interface StoreSummary {
 interface DealRow {
   id:                 number
   raw_product_name:   string
-  sale_price:         number
+  sale_price:         number | null
   price_per_unit:     number | null
   unit_size:          string | null
   special_conditions: string | null
@@ -60,7 +60,7 @@ interface DealRow {
 interface SearchResult {
   id:                 number
   raw_product_name:   string
-  sale_price:         number
+  sale_price:         number | null
   price_per_unit:     number | null
   unit_size:          string | null
   special_conditions: string | null
@@ -90,9 +90,11 @@ function fmtDate(d: string | null | undefined): string {
   })
 }
 
-function fmtPrice(p: number): string {
-  return `$${p.toFixed(2)}`
+
+function fmtPrice(p: number | null | undefined): string {
+  return p == null ? "—" : `$${p.toFixed(2)}`
 }
+
 
 function useDebounce<T>(value: T, ms: number): T {
   const [v, setV] = useState(value)
@@ -477,7 +479,7 @@ export default function HomePage() {
                     </p>
                     <div className="mt-3 flex items-baseline gap-2">
                       <span className="text-xl font-bold text-primary">
-                        {fmtPrice(r.sale_price)}
+                        {r.sale_price != null ? fmtPrice(r.sale_price) : (r.special_conditions ?? "—")}
                       </span>
                       {r.unit_size && (
                         <span className="text-xs text-muted-foreground">
@@ -545,7 +547,7 @@ export default function HomePage() {
                                 </p>
                                 <div className="mt-3 flex items-baseline gap-2">
                                   <span className="text-xl font-bold text-primary">
-                                    {fmtPrice(deal.sale_price)}
+                                    {deal.sale_price != null ? fmtPrice(deal.sale_price) : (deal.special_conditions ?? "—")}
                                   </span>
                                   {deal.unit_size && (
                                     <span className="text-xs text-muted-foreground">
