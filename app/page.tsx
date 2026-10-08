@@ -95,6 +95,18 @@ function fmtPrice(p: number | null | undefined): string {
   return p == null ? "—" : `$${p.toFixed(2)}`
 }
 
+// Condition text for display. When the card already shows a bundle line
+// ("2 for $7.00"), drop the same leading "N for $X" phrase from the condition
+// so only the extra wording is left ("2 for $7 with card" -> "With card").
+function fmtConditions(sc: string | null | undefined, hasBundleLine = false): string | null {
+  if (!sc) return null
+  let out = sc.trim()
+  if (hasBundleLine) {
+    out = out.replace(/^\d+\s*(?:for|\/|\|)\s*\$?[\d.]+\s*[,;:\-–]?\s*/i, "").trim()
+  }
+  return out ? out.charAt(0).toUpperCase() + out.slice(1) : null
+}
+
 
 function useDebounce<T>(value: T, ms: number): T {
   const [v, setV] = useState(value)
@@ -479,7 +491,9 @@ export default function HomePage() {
                     </p>
                     <div className="mt-3 flex items-baseline gap-2">
                       <span className="text-xl font-bold text-primary">
-                        {r.sale_price != null ? fmtPrice(r.sale_price) : (r.special_conditions ?? "—")}
+                        {r.sale_price != null
+                          ? fmtPrice(r.sale_price)
+                          : <span className="text-sm font-medium text-muted-foreground">No price listed</span>}
                       </span>
                       {r.unit_size && (
                         <span className="text-xs text-muted-foreground">
@@ -487,9 +501,9 @@ export default function HomePage() {
                         </span>
                       )}
                     </div>
-                    {r.special_conditions && (
+                    {fmtConditions(r.special_conditions) && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        {r.special_conditions}
+                        {fmtConditions(r.special_conditions)}
                       </p>
                     )}
                     <p className="text-[10px] text-muted-foreground mt-2">
@@ -547,7 +561,9 @@ export default function HomePage() {
                                 </p>
                                 <div className="mt-3 flex items-baseline gap-2">
                                   <span className="text-xl font-bold text-primary">
-                                    {deal.sale_price != null ? fmtPrice(deal.sale_price) : (deal.special_conditions ?? "—")}
+                                    {deal.sale_price != null
+                                      ? fmtPrice(deal.sale_price)
+                                      : <span className="text-sm font-medium text-muted-foreground">No price listed</span>}
                                   </span>
                                   {deal.unit_size && (
                                     <span className="text-xs text-muted-foreground">
@@ -560,9 +576,9 @@ export default function HomePage() {
                                     {deal.bundle_quantity} for {fmtPrice(deal.bundle_price)}
                                   </p>
                                 )}
-                                {deal.special_conditions && (
+                                {fmtConditions(deal.special_conditions, !!(deal.bundle_quantity && deal.bundle_price)) && (
                                   <p className="text-xs text-muted-foreground mt-1">
-                                    {deal.special_conditions}
+                                    {fmtConditions(deal.special_conditions, !!(deal.bundle_quantity && deal.bundle_price))}
                                   </p>
                                 )}
                               </div>
