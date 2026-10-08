@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { MessageSquarePlus, ThumbsUp, ThumbsDown, X, Check } from "lucide-react"
+import { MessageSquarePlus, X, Check } from "lucide-react"
 
 interface FeedbackWidgetProps {
   page: string                    // "browse" | "trends" | "basket"
@@ -9,36 +9,59 @@ interface FeedbackWidgetProps {
 }
 
 type Status = "closed" | "open" | "sent"
+type Sentiment = "love" | "good" | "okay" | "bad"
+
+const SENTIMENTS: { value: Sentiment; label: string }[] = [
+  { value: "love", label: "Love it" },
+  { value: "good", label: "Good" },
+  { value: "okay", label: "Okay" },
+  { value: "bad",  label: "Needs work" },
+]
+
+// Only shown for "okay" / "bad" — asking what's wrong to someone who's happy
+// just adds friction for no reason.
+const ISSUE_TAGS: Record<string, string[]> = {
+  browse: ["Price looks wrong", "Wrong category", "Can't find a product", "Confusing layout", "Other"],
+  trends: ["Chart is confusing", "Missing a store", "Doesn't match real prices", "Missing a product", "Other"],
+  basket: ["Total seems off", "Missing an item", "Store comparison unclear", "Other"],
+}
 
 export function FeedbackWidget({ page, context }: FeedbackWidgetProps) {
-  const [status, setStatus]   = useState<Status>("closed")
-  const [rating, setRating]   = useState<"up" | "down" | null>(null)
-  const [comment, setComment] = useState("")
-  const [sending, setSending] = useState(false)
+  const [status, setStatus]       = useState<Status>("closed")
+  const [sentiment, setSentiment] = useState<Sentiment | null>(null)
+  const [tags, setTags]           = useState<string[]>([])
+  const [comment, setComment]     = useState("")
+  const [sending, setSending]     = useState(false)
+
+  const needsDetail = sentiment === "okay" || sentiment === "bad"
+  const tagOptions = ISSUE_TAGS[page] ?? []
 
   const reset = () => {
     setStatus("closed")
-    setRating(null)
+    setSentiment(null)
+    setTags([])
     setComment("")
   }
 
-  const submit = async (r: "up" | "down") => {
-    setRating(r)
+  const toggleTag = (tag: string) => {
+    setTags(prev => prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag])
+  }
+
+  const submit = async () => {
+    if (!sentiment) return
     setSending(true)
     try {
       await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ page, rating: r, comment, context }),
+        body: JSON.stringify({ page, sentiment, issue_tags: tags, comment, context }),
       })
-      setStatus("sent")
-      setTimeout(reset, 1800)
     } catch {
       // fail quietly — feedback isn't critical path
-      setStatus("sent")
-      setTimeout(reset, 1800)
     } finally {
       setSending(false)
+      setStatus("sent")
+      setTimeout(reset, 1800)
     }
   }
 
@@ -56,7 +79,7 @@ export function FeedbackWidget({ page, context }: FeedbackWidgetProps) {
   }
 
   return (
-    <div className="fixed bottom-5 right-5 z-20 w-72 rounded-xl border border-border bg-card shadow-xl p-4">
+    <div className="fixed bottom-5 right-5 z-20 w-80 rounded-xl border border-border bg-card shadow-xl p-4">
       {status === "sent" ? (
         <div className="flex items-center gap-2 text-sm text-foreground py-2">
           <Check className="h-4 w-4 text-primary" />
@@ -72,44 +95,66 @@ export function FeedbackWidget({ page, context }: FeedbackWidgetProps) {
               <X className="h-4 w-4 text-muted-foreground hover:text-foreground" />
             </button>
           </div>
-          <div className="flex gap-2 mb-3">
-            <button
-              onClick={() => setRating("up")}
-              className={[
-                "flex-1 flex items-center justify-center gap-1.5 rounded-lg border py-2 text-sm transition-colors",
-                rating === "up"
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border text-muted-foreground hover:text-foreground",
-              ].join(" ")}
-            >
-              <ThumbsUp className="h-4 w-4" /> Good
-            </button>
-            <button
-              onClick={() => setRating("down")}
-              className={[
-                "flex-1 flex items-center justify-center gap-1.5 rounded-lg border py-2 text-sm transition-colors",
-                rating === "down"
-                  ? "border-destructive bg-destructive/10 text-destructive"
-                  : "border-border text-muted-foreground hover:text-foreground",
-              ].join(" ")}
-            >
-              <ThumbsDown className="h-4 w-4" /> Needs work
-            </button>
+
+          <div className="grid grid-cols-4 gap-1.5 mb-3">
+            {SENTIMENTS.map(s => (
+              <button
+                key={s.value}
+                onClick={() => setSentiment(s.value)}
+                className={[
+                  "flex flex-col items-center justify-center rounded-lg border py-2 px-1 text-xs leading-tight text-center transition-colors",
+                  sentiment === s.value
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-border text-muted-foreground hover:text-foreground",
+                ].join(" ")}
+              >
+                {s.label}
+              </button>
+            ))}
           </div>
-          <textarea
-            value={comment}
-            onChange={e => setComment(e.target.value)}
-            placeholder="Optional: what would make this better?"
-            rows={3}
-            className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          />
-          <button
-            disabled={!rating || sending}
-            onClick={() => rating && submit(rating)}
-            className="w-full mt-3 rounded-lg bg-primary text-primary-foreground py-2 text-sm font-medium disabled:opacity-40 hover:opacity-90 transition-opacity"
-          >
-            {sending ? "Sending…" : "Send feedback"}
-          </button>
+
+          {sentiment && needsDetail && tagOptions.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                What's the issue? (pick any that apply)
+              </p>
+              <div className="flex flex-wrap gap-1.5">
+                {tagOptions.map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => toggleTag(tag)}
+                    className={[
+                      "rounded-full border px-2.5 py-1 text-xs transition-colors",
+                      tags.includes(tag)
+                        ? "border-primary bg-primary/10 text-primary"
+                        : "border-border text-muted-foreground hover:text-foreground",
+                    ].join(" ")}
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {sentiment && (
+            <>
+              <textarea
+                value={comment}
+                onChange={e => setComment(e.target.value)}
+                placeholder="Optional: anything else to add?"
+                rows={3}
+                className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <button
+                disabled={sending}
+                onClick={submit}
+                className="w-full mt-3 rounded-lg bg-primary text-primary-foreground py-2 text-sm font-medium disabled:opacity-40 hover:opacity-90 transition-opacity"
+              >
+                {sending ? "Sending…" : "Send feedback"}
+              </button>
+            </>
+          )}
         </>
       )}
     </div>
