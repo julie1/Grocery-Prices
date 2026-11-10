@@ -1,13 +1,13 @@
 name: Keep Supabase Project Alive
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 */6 * * *'
   workflow_dispatch:
 jobs:
   ping-supabase:
     runs-on: ubuntu-latest
     steps:
-      - name: Ping Supabase database
+      - name: Write heartbeat and read data
         run: |
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
           curl -fsS -X POST "https://teudindahxbeiretiycf.supabase.co/rest/v1/keepalive" \
@@ -16,8 +16,6 @@ jobs:
             -H "Content-Type: application/json" \
             -H "Prefer: resolution=merge-duplicates" \
             -d "{\"id\": 1, \"last_ping\": \"$TIMESTAMP\"}"
-      - name: Ping Supabase Management API
-        run: |
-          curl -fsS --max-time 10 -X GET "https://api.supabase.io/v1/projects/teudindahxbeiretiycf" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_ACCESS_TOKEN }}" \
-            -H "Content-Type: application/json"
+          curl -fsS "https://teudindahxbeiretiycf.supabase.co/rest/v1/prices?select=id&limit=5" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}"
